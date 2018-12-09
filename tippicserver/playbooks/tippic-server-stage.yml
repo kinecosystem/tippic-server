@@ -8,7 +8,7 @@
     - igor_mukhin.bash_aliases
 
   vars:
-   branch_name: tippic
+   branch_name: master
    deployment_env: stage
    environment_config:
      ENV: stage

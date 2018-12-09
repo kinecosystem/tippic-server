@@ -5,7 +5,7 @@
     - tippic-server-bin
 
   vars:
-   branch_name: tippic
+   branch_name: master
    deployment_env: stage
    environment_config: # only sets the console env, not the app context. to set the context, edit supervisor's config
      ENV: stage

@@ -9,7 +9,7 @@
     #- ansible-roles.bash_aliases
 
   vars:
-   branch_name: tippic
+   branch_name: master
    deployment_env: prod
    environment_config:
      ENV: prod
