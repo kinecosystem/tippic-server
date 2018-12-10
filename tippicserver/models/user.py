@@ -1,17 +1,19 @@
 """The User model"""
-from sqlalchemy_utils import UUIDType
-from sqlalchemy.dialects.postgresql import INET
 import logging as log
+from distutils.version import LooseVersion
+from time import sleep
+from uuid import uuid4
+
+import arrow
+from kinappserver.models import send_push_register, count_completed_tasks
+from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy_utils import UUIDType
 
 from tippicserver import db, config, app
-from tippicserver.utils import InvalidUsage, OS_IOS, OS_ANDROID, parse_phone_number, increment_metric, gauge_metric, get_global_config, generate_memo, OS_ANDROID, OS_IOS, commit_json_changed_to_orm
-from uuid import uuid4, UUID
-from .push_auth_token import get_token_obj_by_user_id, should_send_auth_token, set_send_date
-import arrow
-import json
-from distutils.version import LooseVersion
+from tippicserver.utils import InvalidUsage, parse_phone_number, increment_metric, get_global_config, OS_ANDROID, \
+    OS_IOS, commit_json_changed_to_orm
 from .backup import get_user_backup_hints_by_enc_phone
-from time import sleep
+from .push_auth_token import get_token_obj_by_user_id
 
 DEFAULT_TIME_ZONE = -4
 TIPPIC_IOS_PACKAGE_ID_PROD = 'org.kinecosystem.tippic'  # AKA bundle id
@@ -35,6 +37,8 @@ class User(db.Model):
     deactivated = db.Column(db.Boolean, unique=False, default=False)
     auth_token = db.Column(UUIDType(binary=False), primary_key=False, nullable=True)
     package_id = db.Column(db.String(60), primary_key=False, nullable=True)
+    completed_picture = db.Column(db.JSON) # {picture_id, picture_order_index, timestamp}
+
 
     def __repr__(self):
         return '<sid: %s, user_id: %s, os_type: %s, device_model: %s, push_token: %s, time_zone: %s, device_id: %s,' \
@@ -57,6 +61,18 @@ def deactivate_user(user_id):
     user.deactivated = True
     db.session.add(user)
     db.session.commit()
+
+
+def skip_picture_wait(user_id, last_picture_ts):
+    try:
+        # stored as string, can be None
+        user_app_data = UserAppData.query.filter_by(user_id=user_id).first()
+        user_app_data.completed_picture['timestamp'] = last_picture_ts
+        db.session.add(user_app_data)
+        db.session.commit()
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('cant set task result ts')
 
 
 def user_deactivated(user_id):
