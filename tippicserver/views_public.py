@@ -9,7 +9,6 @@ import arrow
 import redis_lock
 from flask import request, jsonify, abort
 from flask_api import status
-from kinappserver.models import get_offer_details, get_task_details
 
 from tippicserver import app, config, utils
 from tippicserver.models import create_user, update_user_token, update_user_app_version, is_onboarded, set_onboarded, \
@@ -399,11 +398,11 @@ def register_api():
                 print('disabling backup nag for registering userid %s' % user_id)
                 global_config['backup_nag'] = False
 
-            if should_force_update(os, app_ver):
-                global_config['force_update'] = True
+            # if should_force_update(os, app_ver):
+            #     global_config['force_update'] = True
 
-            if is_update_available(os, app_ver):
-                global_config['is_update_available'] = True
+            # if is_update_available(os, app_ver):
+            #     global_config['is_update_available'] = True
 
 
             # return global config - the user doesn't have user-specific config (yet)

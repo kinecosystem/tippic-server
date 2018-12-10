@@ -5,10 +5,8 @@ from time import sleep
 from uuid import uuid4
 
 import arrow
-from kinappserver.models import send_push_register, count_completed_tasks
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy_utils import UUIDType
-
 from tippicserver import db, config, app
 from tippicserver.utils import InvalidUsage, parse_phone_number, increment_metric, get_global_config, OS_ANDROID, \
     OS_IOS, commit_json_changed_to_orm
@@ -37,7 +35,6 @@ class User(db.Model):
     deactivated = db.Column(db.Boolean, unique=False, default=False)
     auth_token = db.Column(UUIDType(binary=False), primary_key=False, nullable=True)
     package_id = db.Column(db.String(60), primary_key=False, nullable=True)
-    completed_picture = db.Column(db.JSON) # {picture_id, picture_order_index, timestamp}
 
 
     def __repr__(self):
@@ -61,18 +58,6 @@ def deactivate_user(user_id):
     user.deactivated = True
     db.session.add(user)
     db.session.commit()
-
-
-def skip_picture_wait(user_id, last_picture_ts):
-    try:
-        # stored as string, can be None
-        user_app_data = UserAppData.query.filter_by(user_id=user_id).first()
-        user_app_data.completed_picture['timestamp'] = last_picture_ts
-        db.session.add(user_app_data)
-        db.session.commit()
-    except Exception as e:
-        print(e)
-        raise InvalidUsage('cant set task result ts')
 
 
 def user_deactivated(user_id):
@@ -922,22 +907,22 @@ def count_registrations_for_phone_number(phone_number):
     return count if count else 0
 
 
-def re_register_all_users():
-    """sends a push message to all users with a phone"""
-    all_phoned_users = User.query.filter(User.enc_phone_number != None).filter(User.deactivated == False).all()
-    log.info('sending register to %s users' % len(all_phoned_users))
-    counter = 0
-    for user in all_phoned_users:
+# def re_register_all_users():
+#     """sends a push message to all users with a phone"""
+#     all_phoned_users = User.query.filter(User.enc_phone_number != None).filter(User.deactivated == False).all()
+#     log.info('sending register to %s users' % len(all_phoned_users))
+#     counter = 0
+#     for user in all_phoned_users:
 
-        if user.os_type != OS_ANDROID:
-            log.info('skipping user with ios client')
-            continue
-        user_app_data = get_user_app_data(user.user_id)
-        from distutils.version import LooseVersion
-        if user_app_data.app_ver is None or LooseVersion(user_app_data.app_ver) < LooseVersion('1.2.1'):
-            log.info('skipping user with client ver %s' % user_app_data.app_ver)
+#         if user.os_type != OS_ANDROID:
+#             log.info('skipping user with ios client')
+#             continue
+#         user_app_data = get_user_app_data(user.user_id)
+#         from distutils.version import LooseVersion
+#         if user_app_data.app_ver is None or LooseVersion(user_app_data.app_ver) < LooseVersion('1.2.1'):
+#             log.info('skipping user with client ver %s' % user_app_data.app_ver)
 
-        sleep(0.5)  # lets not choke the server. this can really hurt us if done too fast.
-        send_push_register(user.user_id)
-        counter = counter + 1
+#         sleep(0.5)  # lets not choke the server. this can really hurt us if done too fast.
+#         send_push_register(user.user_id)
+#         counter = counter + 1
 

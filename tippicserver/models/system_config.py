@@ -7,11 +7,24 @@ from distutils.version import LooseVersion
 class SystemConfig(db.Model):
     """SytemConfig is a table with various configuration options that are coded into the db"""
     sid = db.Column(db.Integer(), db.Sequence('sid', start=1, increment=1), primary_key=True)
-    block_clients_below_version_android = db.Column('block_clients_below_version_android', db.String(100), nullable=False, primary_key=False)
-    block_clients_below_version_ios = db.Column('block_clients_below_version_ios', db.String(100), nullable=False, primary_key=False)
-    update_available_below_version_android = db.Column('update_available_below_version_android', db.String(100), nullable=False, primary_key=False)
-    update_available_below_version_ios = db.Column('update_available_below_version_ios', db.String(100), nullable=False, primary_key=False)
+    block_clients_below_version_android = db.Column('block_clients_below_version_android', db.String(100), nullable=True, primary_key=False)
+    block_clients_below_version_ios = db.Column('block_clients_below_version_ios', db.String(100), nullable=True, primary_key=False)
+    update_available_below_version_android = db.Column('update_available_below_version_android', db.String(100), nullable=True, primary_key=False)
+    update_available_below_version_ios = db.Column('update_available_below_version_ios', db.String(100), nullable=True, primary_key=False)
     categories_extra_data = db.Column(db.JSON)  # all sorts of extra global data pertaining to categories
+    current_picture_index = db.Column(db.Integer(), nullable=True, primary_key=False)
+
+def skip_picture_wait(skip_by):
+    try:
+        # stored as string, can be None
+        system_config = db.session.query(SystemConfig).one()
+        system_config.current_picture_index += int(skip_by)
+        db.session.add(system_config)
+        db.session.commit()
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('cant set task result ts')
+
 
 #TODO cache this to sace sql access
 def get_system_config():

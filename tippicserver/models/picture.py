@@ -1,8 +1,6 @@
-import arrow
-
-from kinappserver import db
-from kinappserver.models import UserAppData
-from kinappserver.utils import InvalidUsage
+from tippicserver import db
+from tippicserver.models import SystemConfig
+from tippicserver.utils import InvalidUsage
 
 
 class Picture(db.Model):
@@ -39,64 +37,32 @@ def picture_to_json(picture):
 
 def get_picture_for_user(user_id):
     """ get next picture for this user"""
-    user_app_data = UserAppData.query.filter_by(user_id=user_id).first()
-    if not user_app_data:
-        raise InvalidUsage('no such user_id')
+    system_config = SystemConfig.query.first()
 
-    if user_app_data.completed_picture is None:
+    if system_config is None:
         # deliver the first image in the order
-        current_picture = Picture.query.order_by(Picture.picture_order_index).first()
+        new_picture = Picture.query.order_by(Picture.picture_order_index).first()
         # we might not have images in the db at all
-        if current_picture is None:
+        if new_picture is None:
             return {}
 
-        picture_json = picture_to_json(current_picture)
-        # store the delivered image information
-        user_app_data.completed_picture = {
-            "picture_id": current_picture.picture_id,
-            "picture_order_index": current_picture.picture_order_index,
-            "timestamp": arrow.utcnow().timestamp
-        }
         try:
-            db.session.add(user_app_data)
+            # store the delivered image information
+            system_config = SystemConfig()
+            system_config.current_picture_index = new_picture.picture_order_index
+            db.session.add(system_config)
             db.session.commit()
         except Exception as e:
             print(e)
             print('cant get_picture_for_user with user_id %s' % user_id)
             return {}
-        return picture_json
+        return picture_to_json(new_picture)
     else:
-        # if timestamp of current delivered picture + delay_time > current 
-        # deliver the next image in order
-        current_picture = Picture.query.filter_by(picture_id=user_app_data.completed_picture['picture_id']).first()
-
-        now = arrow.utcnow()
-        pictures_deliver_time = arrow.get(user_app_data.completed_picture['timestamp'])
-        delay_passed = True if pictures_deliver_time.shift(days=current_picture.delay_days) <= now else False
-
-        if delay_passed:
-            new_picture = Picture.query.filter_by(picture_id=user_app_data.completed_picture['picture_id'] + 1).first()
-            # do we have any more pictures to show?
-            if not new_picture:
-                return {}
-        
-            picture_json = picture_to_json(new_picture)
-            # store the delivered image information
-            user_app_data.completed_picture = {
-                "picture_id": current_picture.picture_id,
-                "picture_order_index": current_picture.picture_order_index,
-                "timestamp": arrow.utcnow().timestamp
-            }
-            try:
-                db.session.add(user_app_data)
-                db.session.commit()
-            except Exception as e:
-                print(e)
-                print('cant get_picture_for_user with user_id %s' % user_id)
-                return {}
-            return picture_json
-        else:
-            return picture_to_json(current_picture)
+        # deliver the current picture
+        new_picture = Picture.query.filter_by(picture_order_index=system_config.current_picture_index).first()
+        if not new_picture:
+            return {}
+        return picture_to_json(new_picture)
 
 
 def set_picture_active(picture_id, is_active):

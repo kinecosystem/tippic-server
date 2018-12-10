@@ -3,8 +3,8 @@ import unittest
 import uuid
 
 import testing.postgresql
-import kinappserver
-from kinappserver import db
+import tippicserver
+from tippicserver import db
 
 USER_ID_HEADER = "X-USERID"
 
@@ -18,12 +18,12 @@ class Tester(unittest.TestCase):
     def setUp(self):
         # overwrite the db name, dont interfere with stage db data
         self.postgresql = testing.postgresql.Postgresql()
-        kinappserver.app.config['SQLALCHEMY_DATABASE_URI'] = self.postgresql.url()
-        kinappserver.app.testing = True
-        self.app = kinappserver.app.test_client()
+        tippicserver.app.config['SQLALCHEMY_DATABASE_URI'] = self.postgresql.url()
+        tippicserver.app.testing = True
+        self.app = tippicserver.app.test_client()
         db.drop_all()
         db.create_all()
-        kinappserver.config.PHONE_VERIFICATION_REQUIRED = True
+        tippicserver.config.PHONE_VERIFICATION_REQUIRED = True
 
     def tearDown(self):
         self.postgresql.stop()
@@ -140,8 +140,7 @@ class Tester(unittest.TestCase):
         # - skip user
         resp = self.app.post('/user/skip_picture',
                              data=json.dumps({
-                                 'user_id': str(userid),
-                                 'last_picture_ts': '1'
+                                 'skip_by': '1'
                              }),
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
@@ -153,7 +152,7 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data, None)
+        self.assertEqual(data, {})
 
         # - add a picture
         resp = self.app.post('/picture',
@@ -181,7 +180,7 @@ class Tester(unittest.TestCase):
                                  'user_id': str(userid2),
                                  'os': 'iOS',
                                  'device_model': 'iPhone X',
-                                 'device_id': '234234',
+                                 'device_id': '134234',
                                  'time_zone': '05:00',
                                  'token': 'fake_token',
                                  'app_ver': '1.0'}),
@@ -208,24 +207,6 @@ class Tester(unittest.TestCase):
                     content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # - call /user/picture before phone auth - picture id 1 returns
-        resp = self.app.get('/user/picture',
-                            headers={USER_ID_HEADER: str(userid2)},
-                            content_type='application/json')
-        self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.data)
-        print(data)
-        self.assertEqual(data['picture_id'], picture_1['picture_id'])
-        self.assertEqual(data['image_url'], picture_1['image_url'])
-
-        # - skip user2
-        resp = self.app.post('/user/skip_picture',
-                             data=json.dumps({
-                                 'user_id': userid2,
-                                 'last_picture_ts': '1'
-                             }), content_type='application/json')
-        self.assertEqual(resp.status_code, 200)
-
         # - call /user/picture before phone auth - picture id 2 returns
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid2)},
@@ -236,6 +217,21 @@ class Tester(unittest.TestCase):
         self.assertEqual(data['picture_id'], picture_2['picture_id'])
         self.assertEqual(data['image_url'], picture_2['image_url'])
 
+        # - skip user2
+        resp = self.app.post('/user/skip_picture',
+                             data=json.dumps({
+                                 'skip_by': '1'
+                             }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # - call /user/picture before phone auth - no more pictures after skip
+        resp = self.app.get('/user/picture',
+                            headers={USER_ID_HEADER: str(userid2)},
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        print(data)
+        self.assertEqual(data, {})
 
 if __name__ == '__main__':
     unittest.main()
