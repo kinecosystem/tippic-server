@@ -138,7 +138,7 @@ class Tester(unittest.TestCase):
         self.assertEqual(data['image_url'], picture_1['image_url'])
 
         # - skip user
-        resp = self.app.post('/user/skip_picture',
+        resp = self.app.post('/skip_picture',
                              data=json.dumps({
                                  'skip_by': '1'
                              }),
@@ -218,7 +218,7 @@ class Tester(unittest.TestCase):
         self.assertEqual(data['image_url'], picture_2['image_url'])
 
         # - skip user2
-        resp = self.app.post('/user/skip_picture',
+        resp = self.app.post('/skip_picture',
                              data=json.dumps({
                                  'skip_by': '1'
                              }), content_type='application/json')

@@ -373,12 +373,11 @@ def system_versions_force_update_below_endpoint():
     return jsonify(status='ok')
 
 
-@app.route('/user/skip_picture', methods=['POST'])
+@app.route('/skip_picture', methods=['POST'])
 def skip_picture_endpoint():
-    """sets the next task's timestamp to the past for the given user"""
+    """advances current_picture_index"""
     if not config.DEBUG:
-        limit_to_acl()
-        limit_to_password()
+        limit_to_localhost()
     
     try:
         payload = request.get_json(silent=True)

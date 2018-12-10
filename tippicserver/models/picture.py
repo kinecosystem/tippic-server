@@ -58,6 +58,7 @@ def get_picture_for_user(user_id):
             return {}
         return picture_to_json(new_picture)
     else:
+        # TODO: cache this
         # deliver the current picture
         new_picture = Picture.query.filter_by(picture_order_index=system_config.current_picture_index).first()
         if not new_picture:
