@@ -45,7 +45,7 @@
    api_server_url: 'https://api.tippicapp.com'
    use_payment_service_phone_number_prefix: '+'
    use_payment_service_percent_of_users: 100
-   block_onboarding_android_version: 1.2.5
+   block_onboarding_android_version: 99.99.99
    block_onboarding_ios_version: 0.0
    blocked_phone_prefixes: "['+55']" # handle with care. for example: "['+55','+972']" . must be a valid python list as a string. getting it wrong will break the server at startup.
    allowed_phone_prefixes: "['+1','+44','+972']"
@@ -85,4 +85,4 @@
      - { alias: '_tail', command: 'tail -f /var/log/tippicserver.err.log -n 10' }
      - { alias: '_tailworker-fast', command: 'tail -f /var/log/tippicworker_fast.err.log -n 10' }
      - { alias: '_tailworker-slow', command: 'tail -f /var/log/tippicworker_slow.err.log -n 10' }
-     - { alias: '_sql', command: "psql postgresql://{{lookup('aws_ssm', '/config/prod/sql/userpassword')}}@tippic-prod.cudbl0spntq9.us-east-1.rds.amazonaws.com/tippicdb" }
+     - { alias: '_sql', command: "psql postgresql://{{lookup('aws_ssm', '/config/tippic/prod/sql/userpassword')}}@tippic-prod.cudbl0spntq9.us-east-1.rds.amazonaws.com/tippicdb" }

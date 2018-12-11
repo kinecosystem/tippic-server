@@ -1,6 +1,6 @@
 - name: Clone the tippic-server repo
   git:
-    repo=https://github.com/kinfoundation/kin-app-server.git
+    repo=https://github.com/kinecosystem/tippic-server.git
     dest=/opt/tippic-server
     accept_hostkey=true
     force=yes
