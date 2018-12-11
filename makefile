@@ -10,6 +10,7 @@ install-travis:
 	
 test:
 	export LC_ALL=C
+	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/onboarding.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/phone_verification.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/balance.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/registration.py
@@ -18,7 +19,6 @@ test:
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/utils_test.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/phone_verification_blacklisted_phone.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/blacklisted_phone_numbers.py
-	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/onboarding.py
 	#	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/backup_questions.py
     #	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/backup_questions2.py
 all:

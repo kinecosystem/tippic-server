@@ -9,7 +9,7 @@ from flask import request, jsonify, abort
 from tippicserver import app, config, stellar, ssm
 from tippicserver.models import nuke_user_data, get_user_report, get_user_tx_report, scan_for_deauthed_users, \
     user_exists, get_unauthed_users, get_all_user_id_by_phone, delete_all_user_data, blacklist_phone_number, \
-    blacklist_phone_by_user_id, migrate_restored_user_data, \
+    blacklist_phone_by_user_id, \
     get_tx_totals, set_should_solve_captcha, \
     set_update_available_below, set_force_update_below, add_picture, skip_picture_wait
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, sqlalchemy_pool_status
@@ -34,24 +34,6 @@ def delete_user_data_endpoint():
     user_id = payload.get('user_id', None)
     are_u_sure = payload.get('are_u_sure', False)
     delete_all_user_data(user_id, are_u_sure)
-    return jsonify(status='ok')
-
-
-@app.route('/push/please_upgrade', methods=['POST'])
-def push_please_upgrade_api():
-    """sends a please-upgrade message to the given user_ids"""
-    # TODO REMOVE ME
-    if not config.DEBUG:
-        limit_to_localhost()
-
-    payload = request.get_json(silent=True)
-    try:
-        user_ids = payload.get('user_ids', None)
-    except Exception as e:
-        print('exception: %s' % e)
-        raise InvalidUsage('bad-request')
-
-    send_please_upgrade_push_2(user_ids)
     return jsonify(status='ok')
 
 
@@ -230,29 +212,6 @@ def user_phone_number_blacklist_endpoint():
     return jsonify(status='ok')
 
 
-# @app.route('/user/skip_wait', methods=['POST'])
-# def skip_wait_endpoint():
-#     """sets the next task's timestamp to the past for the given user"""
-#     limit_to_acl()
-#     limit_to_password()
-#
-#     try:
-#         payload = request.get_json(silent=True)
-#         user_id = payload.get('user_id', None)
-#         cat_id = payload.get('cat_id', None)
-#         next_ts = payload.get('next_ts', 1)  # optional
-#         if user_id is None:
-#             raise InvalidUsage('bad-request')
-#     except Exception as e:
-#         print(e)
-#         raise InvalidUsage('bad-request')
-#     else:
-#         store_next_task_results_ts(user_id, 'fake_task_id', next_ts, cat_id)
-#
-#     increment_metric('skip-wait')
-#     return jsonify(status='ok')
-
-
 @app.route('/user/blacklist', methods=['POST'])
 def blacklist_user_endpoint():
     """"""
@@ -273,28 +232,6 @@ def blacklist_user_endpoint():
             return jsonify(status='ok')
         else:
             return jsonify(status='error')
-
-
-# @app.route('/users/migrate-restored-user', methods=['POST'])
-# def migrate_restored_user():
-#     # TODO remove me later
-#     if not config.DEBUG:
-#         limit_to_localhost()
-
-#     try:
-#         payload = request.get_json(silent=True)
-#         restored_user_id = payload.get('restored_user_id', None)
-#         temp_user_id = payload.get('temp_user_id', None)
-#     except Exception as e:
-#         log.error('failed to process migrate-restored-user')
-
-#     if not migrate_restored_user_data(temp_user_id, restored_user_id):
-#         log.error('failed to migrate restored user data from %s to %s' % (temp_user_id, restored_user_id))
-#         return jsonify(status='error')
-#     else:
-#         send_push_register(restored_user_id)
-
-#     return jsonify(status='ok')
 
 
 @app.route('/rq/jobs/count', methods=['GET'])

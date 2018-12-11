@@ -20,7 +20,7 @@ from tippicserver.models import create_user, update_user_token, update_user_app_
     validate_auth_token, restore_user_by_address, should_block_user_by_client_version, deactivate_user, \
     get_user_os_type, count_registrations_for_phone_number, \
     update_ip_address, is_userid_blacklisted, should_force_update, is_update_available, get_picture_for_user
-from tippicserver.stellar import create_account
+from tippicserver.stellar import create_account, send_kin
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
     get_global_config, read_payment_data_from_cache
@@ -321,7 +321,19 @@ def onboard_user():
                 print('exception trying to create account:%s' % e)
                 raise InternalError('unable to create account')
             else:
+                # TODO make the 15 KIN configurable and make sure we only reward
+                # user with same phone number once.
                 print('created account %s with txid %s' % (public_address, tx_id))
+                try:
+                    send_tx = send_kin(public_address, 15, memo=None)
+                    if send_tx:
+                        print('sent 15 KIN to user %s ' % user_id)
+                    else:
+                        print('unable to send 15 KIN to user %s ' % user_id)
+                except Exception as e2:
+                    print('exception %s trying to send kin to user ' % e2)
+                else:
+                    print('sent 15 Kin to user %s ' % user_id)
             finally:
                 lock.release()
         else:

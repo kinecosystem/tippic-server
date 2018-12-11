@@ -9,6 +9,8 @@ from stellar_base.address import Address
 import tippicserver
 from tippicserver import db
 
+from tippicserver import stellar
+
 import logging as log
 log.getLogger().setLevel(log.INFO)
 
@@ -56,20 +58,18 @@ class Tester(unittest.TestCase):
 
         # try to onboard user, should succeed
 
+        print('####### onboarding user --------------')
         kp = Keypair.random()
+        paddr = kp.address().decode()
         resp = self.app.post('/user/onboard',
             data=json.dumps({
-                            'public_address': kp.address().decode()}),
+                            'public_address': paddr}),
             headers={USER_ID_HEADER: str(userid)},
             content_type='application/json')
+
         print(json.loads(resp.data))
         self.assertEqual(resp.status_code, 200)
-
-        # ensure that the account was created
-        address = Address(address=kp.address().decode())
-        address.get() # get the updated information
-        assert(address.balances[0]['asset_type'] == 'native' and 
-            int(float(address.balances[0]['balance'])) == 2) #TODO read 2 from config
+        self.assertEqual(15, stellar.get_kin_balance(paddr))
 
         # try onboarding again with the same user - should fail
         resp = self.app.post('/user/onboard',

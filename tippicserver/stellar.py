@@ -13,7 +13,7 @@ def create_account(public_address, initial_xlm_amount):
     #TODO all repeating logic?
     print('creating account with balance:%s' % initial_xlm_amount)
     try:
-        return app.kin_sdk.create_account(public_address, starting_balance=initial_xlm_amount)
+        return app.kin_sdk.create_account(public_address, starting_balance=initial_xlm_amount, memo_text=None, activate=True)
     except Exception as e:
         increment_metric('create_account_error')
         print('caught exception creating account for address %s' % (public_address))
