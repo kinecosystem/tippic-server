@@ -1,17 +1,16 @@
+import json
+import logging as log
+import os
+import random
 from uuid import uuid4
 
-import logging as log
+import arrow
+import phonenumbers
+import requests
 from datadog import statsd
 from flask import config
-import os
-import requests
-import phonenumbers
-import redis
-import json
-import random
-import arrow
-from tippicserver import config, app
 
+from tippicserver import config, app
 
 ERROR_ORDERS_COOLDOWN = -1
 ERROR_NO_GOODS = -2
@@ -242,7 +241,7 @@ def print_creation_statement():
     """prints out db creation statement. useful"""
     from sqlalchemy.schema import CreateTable
     from sqlalchemy.dialects import postgresql
-    from .models import UserAppData, User, ACL, BackupQuestion, PhoneBackupHints, EmailTemplate, BlacklistedEncPhoneNumber, SystemConfig, PushAuthToken
+    from .models import UserAppData, User, ACL, BackupQuestion, PhoneBackupHints, EmailTemplate, BlacklistedEncPhoneNumber, SystemConfig, PushAuthToken,Picture
     log.info(CreateTable(User.__table__).compile(dialect=postgresql.dialect()))
     log.info(CreateTable(UserAppData.__table__).compile(dialect=postgresql.dialect()))
     log.info(CreateTable(ACL.__table__).compile(dialect=postgresql.dialect()))
@@ -252,7 +251,7 @@ def print_creation_statement():
     log.info(CreateTable(BlacklistedEncPhoneNumber.__table__).compile(dialect=postgresql.dialect()))
     log.info(CreateTable(SystemConfig.__table__).compile(dialect=postgresql.dialect()))
     log.info(CreateTable(PushAuthToken.__table__).compile(dialect=postgresql.dialect()))
-
+    log.info(CreateTable(Picture.__table__).compile(dialect=postgresql.dialect()))
 
 
 def random_string(length=8):

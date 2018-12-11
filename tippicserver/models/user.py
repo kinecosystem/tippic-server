@@ -1,17 +1,17 @@
 """The User model"""
-from sqlalchemy_utils import UUIDType
-from sqlalchemy.dialects.postgresql import INET
 import logging as log
-
-from tippicserver import db, config, app
-from tippicserver.utils import InvalidUsage, OS_IOS, OS_ANDROID, parse_phone_number, increment_metric, gauge_metric, get_global_config, generate_memo, OS_ANDROID, OS_IOS, commit_json_changed_to_orm
-from uuid import uuid4, UUID
-from .push_auth_token import get_token_obj_by_user_id, should_send_auth_token, set_send_date
-import arrow
-import json
 from distutils.version import LooseVersion
-from .backup import get_user_backup_hints_by_enc_phone
 from time import sleep
+from uuid import uuid4
+
+import arrow
+from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy_utils import UUIDType
+from tippicserver import db, config, app
+from tippicserver.utils import InvalidUsage, parse_phone_number, increment_metric, get_global_config, OS_ANDROID, \
+    OS_IOS, commit_json_changed_to_orm
+from .backup import get_user_backup_hints_by_enc_phone
+from .push_auth_token import get_token_obj_by_user_id
 
 DEFAULT_TIME_ZONE = -4
 TIPPIC_IOS_PACKAGE_ID_PROD = 'org.kinecosystem.tippic'  # AKA bundle id
@@ -35,6 +35,7 @@ class User(db.Model):
     deactivated = db.Column(db.Boolean, unique=False, default=False)
     auth_token = db.Column(UUIDType(binary=False), primary_key=False, nullable=True)
     package_id = db.Column(db.String(60), primary_key=False, nullable=True)
+
 
     def __repr__(self):
         return '<sid: %s, user_id: %s, os_type: %s, device_model: %s, push_token: %s, time_zone: %s, device_id: %s,' \
@@ -906,22 +907,22 @@ def count_registrations_for_phone_number(phone_number):
     return count if count else 0
 
 
-def re_register_all_users():
-    """sends a push message to all users with a phone"""
-    all_phoned_users = User.query.filter(User.enc_phone_number != None).filter(User.deactivated == False).all()
-    log.info('sending register to %s users' % len(all_phoned_users))
-    counter = 0
-    for user in all_phoned_users:
+# def re_register_all_users():
+#     """sends a push message to all users with a phone"""
+#     all_phoned_users = User.query.filter(User.enc_phone_number != None).filter(User.deactivated == False).all()
+#     log.info('sending register to %s users' % len(all_phoned_users))
+#     counter = 0
+#     for user in all_phoned_users:
 
-        if user.os_type != OS_ANDROID:
-            log.info('skipping user with ios client')
-            continue
-        user_app_data = get_user_app_data(user.user_id)
-        from distutils.version import LooseVersion
-        if user_app_data.app_ver is None or LooseVersion(user_app_data.app_ver) < LooseVersion('1.2.1'):
-            log.info('skipping user with client ver %s' % user_app_data.app_ver)
+#         if user.os_type != OS_ANDROID:
+#             log.info('skipping user with ios client')
+#             continue
+#         user_app_data = get_user_app_data(user.user_id)
+#         from distutils.version import LooseVersion
+#         if user_app_data.app_ver is None or LooseVersion(user_app_data.app_ver) < LooseVersion('1.2.1'):
+#             log.info('skipping user with client ver %s' % user_app_data.app_ver)
 
-        sleep(0.5)  # lets not choke the server. this can really hurt us if done too fast.
-        send_push_register(user.user_id)
-        counter = counter + 1
+#         sleep(0.5)  # lets not choke the server. this can really hurt us if done too fast.
+#         send_push_register(user.user_id)
+#         counter = counter + 1
 

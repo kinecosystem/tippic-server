@@ -1,34 +1,31 @@
 """
 The Kin App Server public API is defined here.
 """
-from threading import Thread
-from uuid import UUID
-
-from flask import request, jsonify, abort
-from tippicserver.views_common import get_source_ip, extract_headers, limit_to_acl
-from flask_api import status
-import redis_lock
-import arrow
 import logging as log
 from distutils.version import LooseVersion
-from .utils import OS_ANDROID, OS_IOS, random_percent, passed_captcha
+from uuid import UUID
 
-from tippicserver import app, config, stellar, utils, ssm
-from tippicserver.stellar import create_account, send_kin, send_kin_with_payment_service
-from tippicserver.utils import InvalidUsage, InternalError, errors_to_string, increment_metric, gauge_metric, MAX_TXS_PER_USER, extract_phone_number_from_firebase_id_token,\
-    sqlalchemy_pool_status, get_global_config, write_payment_data_to_cache, read_payment_data_from_cache
-from tippicserver.models import create_user, update_user_token, update_user_app_version, is_onboarded, set_onboarded,\
+import arrow
+import redis_lock
+from flask import request, jsonify, abort
+from flask_api import status
+
+from tippicserver import app, config, utils
+from tippicserver.models import create_user, update_user_token, update_user_app_version, is_onboarded, set_onboarded, \
     create_tx, list_user_transactions, \
-    add_p2p_tx, set_user_phone_number, match_phone_number_to_address, user_deactivated,\
-    get_address_by_userid, list_p2p_transactions_for_user_id, nuke_user_data, ack_auth_token,\
-    is_user_authenticated, is_user_phone_verified, get_user_config, get_user_report,\
-    scan_for_deauthed_users, user_exists, is_in_acl,\
-    get_email_template_by_type, get_unauthed_users, get_all_user_id_by_phone, get_backup_hints, generate_backup_questions_list, store_backup_hints, \
-    validate_auth_token, restore_user_by_address, get_unenc_phone_number_by_user_id, update_tx_ts, \
-    should_block_user_by_client_version, deactivate_user, get_user_os_type, should_block_user_by_phone_prefix, count_registrations_for_phone_number, \
-    update_ip_address, should_block_user_by_country_code, is_userid_blacklisted, should_allow_user_by_phone_prefix, should_pass_captcha, \
-    captcha_solved, get_user_tz, do_captcha_stuff, \
-    should_force_update, is_update_available
+    add_p2p_tx, set_user_phone_number, match_phone_number_to_address, user_deactivated, \
+    list_p2p_transactions_for_user_id, ack_auth_token, \
+    is_user_authenticated, is_user_phone_verified, get_user_config, get_email_template_by_type, get_backup_hints, \
+    generate_backup_questions_list, store_backup_hints, \
+    validate_auth_token, restore_user_by_address, should_block_user_by_client_version, deactivate_user, \
+    get_user_os_type, count_registrations_for_phone_number, \
+    update_ip_address, is_userid_blacklisted, should_force_update, is_update_available, get_picture_for_user
+from tippicserver.stellar import create_account
+from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
+    extract_phone_number_from_firebase_id_token, \
+    get_global_config, read_payment_data_from_cache
+from tippicserver.views_common import get_source_ip, extract_headers, limit_to_acl
+from .utils import OS_ANDROID, OS_IOS
 
 
 def get_payment_lock_name(user_id, task_id):
@@ -401,11 +398,11 @@ def register_api():
                 print('disabling backup nag for registering userid %s' % user_id)
                 global_config['backup_nag'] = False
 
-            if should_force_update(os, app_ver):
-                global_config['force_update'] = True
+            # if should_force_update(os, app_ver):
+            #     global_config['force_update'] = True
 
-            if is_update_available(os, app_ver):
-                global_config['is_update_available'] = True
+            # if is_update_available(os, app_ver):
+            #     global_config['is_update_available'] = True
 
 
             # return global config - the user doesn't have user-specific config (yet)
@@ -696,3 +693,27 @@ def payment_service_callback_endpoint():
         return jsonify(status='error', reason='internal_error')
 
     return jsonify(status='ok')
+
+
+@app.route('/user/picture', methods=['GET'])
+def get_next_picture():
+    """returns current picture for user"""
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('getting picture for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
+
+    if user_deactivated(user_id):
+        print('user %s is deactivated. returning empty task array' % user_id)
+        return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
+
+    picture = get_picture_for_user(user_id)
+    print('picture returned for user %s: %s' % (user_id, picture))
+
+    return jsonify(picture)

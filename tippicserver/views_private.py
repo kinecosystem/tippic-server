@@ -1,26 +1,19 @@
 """
 The Kin App Server private API is defined here.
 """
+import logging as log
 from uuid import UUID
 
 from flask import request, jsonify, abort
 
-from tippicserver.views_common import limit_to_acl, limit_to_localhost, limit_to_password, get_source_ip, extract_headers
-
-from tippicserver import app, config, stellar, utils, ssm
-from tippicserver.stellar import create_account, send_kin, send_kin_with_payment_service
-from tippicserver.utils import InvalidUsage, InternalError, errors_to_string, increment_metric, gauge_metric, MAX_TXS_PER_USER, extract_phone_number_from_firebase_id_token,\
-    sqlalchemy_pool_status, get_global_config, write_payment_data_to_cache, read_payment_data_from_cache
-from tippicserver.models import create_user, update_user_token, update_user_app_version, \
-    is_onboarded, set_onboarded, create_tx,list_user_transactions,\
-    add_p2p_tx, set_user_phone_number, match_phone_number_to_address, user_deactivated,get_address_by_userid,\
-    list_p2p_transactions_for_user_id, nuke_user_data, ack_auth_token, is_user_authenticated, is_user_phone_verified,\
-    get_user_config, get_user_report, get_user_tx_report, scan_for_deauthed_users, user_exists, is_in_acl,\
-    get_email_template_by_type, get_unauthed_users, get_all_user_id_by_phone, get_backup_hints, generate_backup_questions_list, store_backup_hints, \
-    validate_auth_token, restore_user_by_address, get_unenc_phone_number_by_user_id, update_tx_ts, \
-    should_block_user_by_client_version, deactivate_user, get_user_os_type, should_block_user_by_phone_prefix, delete_all_user_data, count_registrations_for_phone_number, \
-    blacklist_phone_number, blacklist_phone_by_user_id, migrate_restored_user_data, re_register_all_users, get_tx_totals, set_should_solve_captcha, \
-    set_update_available_below, set_force_update_below
+from tippicserver import app, config, stellar, ssm
+from tippicserver.models import nuke_user_data, get_user_report, get_user_tx_report, scan_for_deauthed_users, \
+    user_exists, get_unauthed_users, get_all_user_id_by_phone, delete_all_user_data, blacklist_phone_number, \
+    blacklist_phone_by_user_id, migrate_restored_user_data, \
+    get_tx_totals, set_should_solve_captcha, \
+    set_update_available_below, set_force_update_below, add_picture, skip_picture_wait
+from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, sqlalchemy_pool_status
+from tippicserver.views_common import limit_to_acl, limit_to_localhost, limit_to_password
 
 
 @app.route('/health', methods=['GET'])
@@ -282,26 +275,26 @@ def blacklist_user_endpoint():
             return jsonify(status='error')
 
 
-@app.route('/users/migrate-restored-user', methods=['POST'])
-def migrate_restored_user():
-    # TODO remove me later
-    if not config.DEBUG:
-        limit_to_localhost()
+# @app.route('/users/migrate-restored-user', methods=['POST'])
+# def migrate_restored_user():
+#     # TODO remove me later
+#     if not config.DEBUG:
+#         limit_to_localhost()
 
-    try:
-        payload = request.get_json(silent=True)
-        restored_user_id = payload.get('restored_user_id', None)
-        temp_user_id = payload.get('temp_user_id', None)
-    except Exception as e:
-        log.error('failed to process migrate-restored-user')
+#     try:
+#         payload = request.get_json(silent=True)
+#         restored_user_id = payload.get('restored_user_id', None)
+#         temp_user_id = payload.get('temp_user_id', None)
+#     except Exception as e:
+#         log.error('failed to process migrate-restored-user')
 
-    if not migrate_restored_user_data(temp_user_id, restored_user_id):
-        log.error('failed to migrate restored user data from %s to %s' % (temp_user_id, restored_user_id))
-        return jsonify(status='error')
-    else:
-        send_push_register(restored_user_id)
+#     if not migrate_restored_user_data(temp_user_id, restored_user_id):
+#         log.error('failed to migrate restored user data from %s to %s' % (temp_user_id, restored_user_id))
+#         return jsonify(status='error')
+#     else:
+#         send_push_register(restored_user_id)
 
-    return jsonify(status='ok')
+#     return jsonify(status='ok')
 
 
 @app.route('/rq/jobs/count', methods=['GET'])
@@ -380,3 +373,38 @@ def system_versions_force_update_below_endpoint():
     return jsonify(status='ok')
 
 
+@app.route('/skip_picture', methods=['POST'])
+def skip_picture_endpoint():
+    """advances current_picture_index"""
+    if not config.DEBUG:
+        limit_to_localhost()
+    
+    try:
+        payload = request.get_json(silent=True)
+        skip_by = payload.get('skip_by', 1)
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+    else:
+        skip_picture_wait(skip_by)
+
+    increment_metric('skip-picture-wait')
+    return jsonify(status='ok')
+
+
+@app.route('/picture', methods=['POST'])
+def add_picture_endpoint():
+    """used to add pictures to the db"""
+    if not config.DEBUG:
+        limit_to_localhost()
+
+    payload = request.get_json(silent=True)
+    try:
+        picture = payload.get('picture', None)
+    except Exception as e:
+        print('exception: %s' % e)
+        raise InvalidUsage('bad-request')
+    if add_picture(picture):
+        return jsonify(status='ok')
+    else:
+        raise InvalidUsage('failed to add picture')

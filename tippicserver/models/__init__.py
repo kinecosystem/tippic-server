@@ -7,3 +7,4 @@ from .backup import *
 from .email_template import *
 from .blacklisted_phone_numbers import *
 from .system_config import *
+from .picture import *
