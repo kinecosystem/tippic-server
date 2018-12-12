@@ -21,8 +21,10 @@ def get_ssm_value(keyname):
 def get_encrpytion_creds():
     """returns the encrpytion/decryption key and iv from ssm"""
     env = os.environ.get('ENV', 'test')
-    encryption_key = get_ssm_parameter('/config/' + env + '/encryption/key', config.KMS_KEY_AWS_REGION)
-    iv = bytes.fromhex(get_ssm_parameter('/config/' + env + '/encryption/iv', config.KMS_KEY_AWS_REGION)) # the iv is encoded into hex()
+    env_key = get_env_key(env)
+
+    encryption_key = get_ssm_parameter('/config/' + env_key + '/encryption/key', config.KMS_KEY_AWS_REGION)
+    iv = bytes.fromhex(get_ssm_parameter('/config/' + env_key + '/encryption/iv', config.KMS_KEY_AWS_REGION)) # the iv is encoded into hex()
     if not encryption_key:
         log.error('cant get encryption_creds')
         raise InternalError('cant get encryption_creds')
@@ -30,15 +32,23 @@ def get_encrpytion_creds():
     return encryption_key, iv
 
 
+def get_env_key(env):
+    if env == 'prod':
+        return 'tippic/prod'
+    else:
+        return env
+
 def get_stellar_credentials():
     # get credentials from ssm. the base_seed is required, the channel-seeds are optional
     env = os.environ.get('ENV', 'test')
     account_sid = os.environ.get('STELLAR_ACCOUNT_SID', None)
     
-    if env.upper()== 'TEST':
+    if env.upper() == 'TEST':
         account_sid = '0'  # for tests, always use 0
-    base_seed = get_ssm_parameter('/config/' + env + '/stellar/account_sid_%s/base-seed' % account_sid, config.KMS_KEY_AWS_REGION)
-    channel_seeds = get_ssm_parameter('/config/' + env + '/stellar/account_sid_%s/channel-seeds' % account_sid, config.KMS_KEY_AWS_REGION)
+
+    env_key = get_env_key(env)
+    base_seed = get_ssm_parameter('/config/' + env_key + '/stellar/account_sid_%s/base-seed' % account_sid, config.KMS_KEY_AWS_REGION)
+    channel_seeds = get_ssm_parameter('/config/' + env_key + '/stellar/account_sid_%s/channel-seeds' % account_sid, config.KMS_KEY_AWS_REGION)
 
     if base_seed is None:
         log.error('cant get base_seed, aborting')
@@ -57,7 +67,8 @@ def write_service_account():
         return config.FIREBASE_SERVICE_ACCOUNT_FILE
     else:
         env = os.environ.get('ENV', 'test')
-        service_account_json = get_ssm_parameter('/config/' + env + '/firebase/service-account', config.KMS_KEY_AWS_REGION)
+        env_key = get_env_key(env)
+        service_account_json = get_ssm_parameter('/config/' + env_key + '/firebase/service-account', config.KMS_KEY_AWS_REGION)
 
         # travis is a special case - has a unique path:
         is_travis = os.environ.get('TRAVIS', 0)
@@ -97,8 +108,9 @@ def get_security_passwords():
     """returns the security password from ssm"""
     passwords = []
     env = os.environ.get('ENV', 'test')
-    password = get_ssm_parameter('/config/' + env + '/misc/password', config.KMS_KEY_AWS_REGION)
-    password2 = get_ssm_parameter('/config/' + env + '/misc/password2', config.KMS_KEY_AWS_REGION)
+    env_key = get_env_key(env)
+    password = get_ssm_parameter('/config/' + env_key + '/misc/password', config.KMS_KEY_AWS_REGION)
+    password2 = get_ssm_parameter('/config/' + env_key + '/misc/password2', config.KMS_KEY_AWS_REGION)
 
     for item in [password, password2]:
         if item:
