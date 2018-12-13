@@ -717,13 +717,13 @@ def get_next_picture():
     print('getting picture for userid %s' % user_id)
 
     # dont serve users with no phone number
-    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
-        print('blocking user %s from getting tasks: phone not verified' % user_id)
-        return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
+    # if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+    #     print('blocking user %s from getting tasks: phone not verified' % user_id)
+    #     return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
 
-    if user_deactivated(user_id):
-        print('user %s is deactivated. returning empty task array' % user_id)
-        return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
+    # if user_deactivated(user_id):
+    #     print('user %s is deactivated. returning empty task array' % user_id)
+    #     return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
 
     picture = get_picture_for_user(user_id)
     print('picture returned for user %s: %s' % (user_id, picture))
