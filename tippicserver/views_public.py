@@ -19,8 +19,8 @@ from tippicserver.models import create_user, update_user_token, update_user_app_
     generate_backup_questions_list, store_backup_hints, \
     validate_auth_token, restore_user_by_address, should_block_user_by_client_version, deactivate_user, \
     get_user_os_type, count_registrations_for_phone_number, \
-    update_ip_address, is_userid_blacklisted, should_force_update, is_update_available, get_picture_for_user
-from tippicserver.stellar import create_account, send_kin
+    update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids
+from tippicserver.stellar import create_account, send_kin, active_account_exists, KIN_INITIAL_REWARD
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
     get_global_config, read_payment_data_from_cache
@@ -300,10 +300,9 @@ def onboard_user():
     elif config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
         raise InvalidUsage('user isnt phone verified')
 
-    # ensure the user exists but does not have an account:
     onboarded = is_onboarded(user_id)
     if onboarded is True:
-        raise InvalidUsage('user already has an account')
+        raise InvalidUsage('user already has an account and has been awarded')
     elif onboarded is None:
         raise InvalidUsage('no such user exists')
     else:
@@ -311,29 +310,16 @@ def onboard_user():
         lock = redis_lock.Lock(app.redis, 'address:%s' % public_address)
         if lock.acquire(blocking=False):
             try:
-                print('creating account with address %s and amount %s' % (public_address, config.STELLAR_INITIAL_ACCOUNT_BALANCE))
-                tx_id = create_account(public_address, config.STELLAR_INITIAL_ACCOUNT_BALANCE)
-                if tx_id:
-                    set_onboarded(user_id, True, public_address)
-                else:
-                    raise InternalError('failed to create account at %s' % public_address)
+                if not active_account_exists(public_address):
+                    print('creating account with address %s and amount %s' % (public_address, config.STELLAR_INITIAL_ACCOUNT_BALANCE))
+                    tx_id = create_account(public_address, config.STELLAR_INITIAL_ACCOUNT_BALANCE)
+                    if not tx_id:
+                        raise InternalError('failed to create account at %s' % public_address)
+                    elif not award_user(user_id, public_address):
+                        raise InternalError('unable to award user with %d Kin' % KIN_INITIAL_REWARD)
             except Exception as e:
                 print('exception trying to create account:%s' % e)
                 raise InternalError('unable to create account')
-            else:
-                # TODO make the 15 KIN configurable and make sure we only reward
-                # user with same phone number once.
-                print('created account %s with txid %s' % (public_address, tx_id))
-                try:
-                    send_tx = send_kin(public_address, 15, memo=None)
-                    if send_tx:
-                        print('sent 15 KIN to user %s ' % user_id)
-                    else:
-                        print('unable to send 15 KIN to user %s ' % user_id)
-                except Exception as e2:
-                    print('exception %s trying to send kin to user ' % e2)
-                else:
-                    print('sent 15 Kin to user %s ' % user_id)
             finally:
                 lock.release()
         else:
@@ -341,6 +327,30 @@ def onboard_user():
 
         increment_metric('user_onboarded')
         return jsonify(status='ok')
+
+
+def award_user(user_id, public_address):
+    onboarded = False
+    for other_id in get_associated_user_ids(user_id):
+        if is_onboarded(other_id):
+            set_onboarded(user_id, True, public_address)
+            onboarded = True
+            print('user %s with same phone number has been previously awarded %d Kin. Will not award again' % (other_id, KIN_INITIAL_REWARD))
+            break
+
+    if not onboarded:
+        try:
+            send_tx = send_kin(public_address, KIN_INITIAL_REWARD)
+            if send_tx:
+                onboarded = True
+                set_onboarded(user_id, True, public_address)
+                print('sent %d KIN to user %s ' % (KIN_INITIAL_REWARD,user_id))
+            else:
+                print('unable to send %d KIN to user %s ' % (KIN_INITIAL_REWARD, user_id))
+        except Exception as e2:
+            print('exception %s trying to send kin to user ' % e2)
+
+    return onboarded
 
 
 @app.route('/user/register', methods=['POST'])
