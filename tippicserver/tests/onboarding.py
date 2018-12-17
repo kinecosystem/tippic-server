@@ -4,7 +4,7 @@ import uuid
 
 import testing.postgresql
 from stellar_base.keypair import Keypair
-from stellar_base.address import Address
+from tippicserver.stellar import KIN_INITIAL_REWARD
 
 import tippicserver
 from tippicserver import db
@@ -39,10 +39,14 @@ class Tester(unittest.TestCase):
     
     def test_onboard(self):
         """test onboarding scenarios"""
+        # onboard 2 different user ids with the same phone number
+        # both should succeed but user should get 15 Kin only once
+        paddr = self.onboard_with_phone( str(uuid.uuid4()), '+9720528802120')
+        self.assertEqual(KIN_INITIAL_REWARD, stellar.get_kin_balance(paddr))
+        paddr = self.onboard_with_phone( str(uuid.uuid4()), '+9720528802120')
+        self.assertEqual(0, stellar.get_kin_balance(paddr))
 
-        #TODO ensure there's enough money in the test account to begin with
-
-        userid = str(uuid.uuid4())
+    def onboard_with_phone(self, userid, phone_num):
         resp = self.app.post('/user/register',
             data=json.dumps({
                             'user_id': str(userid),
@@ -56,9 +60,17 @@ class Tester(unittest.TestCase):
             content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # try to onboard user, should succeed
+        # phone authenticate
 
-        print('####### onboarding user --------------')
+        resp = self.app.post('/user/firebase/update-id-token',
+                    data=json.dumps({
+                        'token': 'fake-token',
+                        'phone_number': phone_num}),
+                    headers={USER_ID_HEADER: str(userid)},
+                    content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        print('onboarding user --------------')
         kp = Keypair.random()
         paddr = kp.address().decode()
         resp = self.app.post('/user/onboard',
@@ -69,9 +81,9 @@ class Tester(unittest.TestCase):
 
         print(json.loads(resp.data))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(15, stellar.get_kin_balance(paddr))
 
         # try onboarding again with the same user - should fail
+        print('onboarding same user second time should fail --------------')
         resp = self.app.post('/user/onboard',
             data=json.dumps({
                             'public_address': kp.address().decode()}),
@@ -80,18 +92,7 @@ class Tester(unittest.TestCase):
         print(json.loads(resp.data))
         self.assertEqual(resp.status_code, 400)
 
-        # try sending kin to that public address
-        """ NEED TO ESTABLISH TRUST FIRST
-        resp = self.app.post('/send-kin',
-            data=json.dumps({
-                            'public_address': kp.address().decode(),
-                            'amount': 1}),
-            headers={USER_ID_HEADER: str(userid)},
-            content_type='application/json')
-        print(json.loads(resp.data))
-        self.assertEqual(resp.status_code, 200)
-        """
-
+        return paddr
 
 
 if __name__ == '__main__':

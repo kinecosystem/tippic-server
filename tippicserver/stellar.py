@@ -6,21 +6,26 @@ import requests
 import random
 import logging as log
 ASSET_NAME = 'KIN'
+TX_MEMO_PREFIX = '1-TPIC'
+KIN_INITIAL_REWARD = 15
 
+def active_account_exists(public_address):
+    """check if an active account exists"""
+    return app.kin_sdk.check_account_exists(public_address) and app.kin_sdk.check_account_active(public_address)
 
 def create_account(public_address, initial_xlm_amount):
     """create an account for the given public address"""
     #TODO all repeating logic?
     print('creating account with balance:%s' % initial_xlm_amount)
     try:
-        return app.kin_sdk.create_account(public_address, starting_balance=initial_xlm_amount, memo_text=None, activate=True)
+        return app.kin_sdk.create_account(public_address, starting_balance=initial_xlm_amount, memo_text=TX_MEMO_PREFIX, activate=True)
     except Exception as e:
         increment_metric('create_account_error')
         print('caught exception creating account for address %s' % (public_address))
         print(e)
 
 
-def send_kin(public_address, amount, memo=None):
+def send_kin(public_address, amount, memo=TX_MEMO_PREFIX):
     """send kins to an address"""
 
     #  sanity:
@@ -43,7 +48,7 @@ def send_kin(public_address, amount, memo=None):
         print(e)
 
 
-def send_kin_with_payment_service(public_address, amount, memo=None):
+def send_kin_with_payment_service(public_address, amount, memo=TX_MEMO_PREFIX):
     """send kins to an address using the payment service"""
 
     #  sanity:
