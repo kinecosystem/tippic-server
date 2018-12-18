@@ -37,10 +37,7 @@ class Tester(unittest.TestCase):
             },
             "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
             "title": "Random Dogs Band",
-            "picture_id": "bananas1",
-            "picture_order_index": 1,
-            "min_client_version_ios": "1.0",
-            "delay_days": 1
+            "picture_order_index": 1
         }
 
         picture_2 = {
@@ -50,10 +47,7 @@ class Tester(unittest.TestCase):
             },
             "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
             "title": "Random Cats Band",
-            "picture_id": "bananas2",
-            "picture_order_index": 2,
-            "min_client_version_ios": "1.0",
-            "delay_days": 2
+            "picture_order_index": 2
         }
         # - call /user/picture without user_id - 400
         resp = self.app.get('/user/picture')
@@ -124,7 +118,6 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data['picture_id'], picture_1['picture_id'])
         self.assertEqual(data['image_url'], picture_1['image_url'])
 
         # call /user/picture before phone auth - picture id 1 returns
@@ -134,7 +127,6 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data['picture_id'], picture_1['picture_id'])
         self.assertEqual(data['image_url'], picture_1['image_url'])
 
         # - skip user
@@ -169,7 +161,6 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data['picture_id'], picture_2['picture_id'])
         self.assertEqual(data['image_url'], picture_2['image_url'])
 
         # - create a new *ios* Tippic user2
@@ -214,7 +205,6 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data['picture_id'], picture_2['picture_id'])
         self.assertEqual(data['image_url'], picture_2['image_url'])
 
         # - skip user2
