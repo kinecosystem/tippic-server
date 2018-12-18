@@ -13,7 +13,6 @@ class Picture(db.Model):
     image_url = db.Column(db.String(200), nullable=False, primary_key=False)
     author = db.Column(db.JSON)
     min_client_version_ios = db.Column(db.String(10), nullable=False, primary_key=False)
-    delay_days = db.Column(db.Integer(), nullable=False, primary_key=False)
     update_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now())
     is_active = db.Column(db.Boolean, unique=False, default=True)
 
@@ -85,24 +84,25 @@ def set_picture_active(picture_id, is_active):
 
 def add_picture(picture_json, set_active=True):
     """adds an picture to the db"""
+    import uuid, json
     print(picture_json)
+
+    picture = Picture()
     try:
-        picture = Picture()
-        picture.picture_id = picture_json['picture_id']
+        picture.picture_id = str(uuid.uuid4())
         picture.title = picture_json['title']
         picture.image_url = picture_json['image_url']
         picture.author = picture_json['author']
         picture.picture_order_index = picture_json['picture_order_index']
-        picture.min_client_version_ios = picture_json['min_client_version_ios']
-        picture.delay_days = picture_json['delay_days']
+        picture.min_client_version_ios = picture_json.get('min_client_version_ios', "1.0")
 
         db.session.add(picture)
         db.session.commit()
     except Exception as e:
         print(e)
-        print('cant add picture to db with picture_id %s' % picture_json['picture_id'])
+        print('cant add picture to db with picture_id %s' % picture.picture_id)
         return False
     else:
         if set_active:
-            set_picture_active(picture_json['picture_id'], True)
+            set_picture_active(picture.picture_id, True)
         return True
