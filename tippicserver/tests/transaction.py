@@ -104,6 +104,20 @@ class Tester(unittest.TestCase):
                              content_type='application/json')
         self.assertEqual(resp.status_code, 400)
 
+        # call /user/transaction/report with the invalid tx_ hash - should fail
+        resp = self.app.post('/user/transaction/report',
+                             data=json.dumps(
+                                 {
+                                     "tx_hash": "f868ABCe7d97fcaa1e651e6ea2d1c6d0a2fef738fab615a1906f4b0c883bc8f",
+                                     "amount": 5,
+                                     "to_address": "GCTWHWZASR3QPR4D2WAVFDIIVZF4VXKAT2NYB7ZNTTWHOA63KWX3B4DA",
+                                     "id": "1",
+                                     "type": "picture"
+                                 }),
+                             headers={USER_ID_HEADER: str(user_id)},
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
 
 if __name__ == '__main__':
     unittest.main()

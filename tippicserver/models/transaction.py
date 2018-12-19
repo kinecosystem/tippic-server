@@ -9,7 +9,7 @@ from tippicserver import db, stellar, config
 
 class Transaction(db.Model):
     """
-    kin transactions: from and to the server
+    Tippic transactions: from and to the server
     """
     tx_hash = db.Column(db.String(100), nullable=False, primary_key=True)
     user_id = db.Column('user_id', UUIDType(binary=False), db.ForeignKey("user.user_id"), primary_key=False,
@@ -50,7 +50,7 @@ def report_transaction(tx_json):
         if not config.DEBUG and not valid:
             return False
     except Exception as e:
-        print(e)
+        print("Exception occurred for tx_hash = %s:\n%s" % (tx_json['tx_hash'], e))
         return False
     # store transaction
     return create_tx(tx_json['tx_hash'], tx_json['user_id'], tx_json['to_address'], tx_json['amount'],

@@ -13,7 +13,7 @@ from flask_api import status
 from tippicserver import app, config, utils
 from tippicserver.models import create_user, update_user_token, update_user_app_version, is_onboarded, set_onboarded, \
     create_tx, list_user_transactions, \
-    add_p2p_tx, set_user_phone_number, match_phone_number_to_address, user_deactivated, \
+    add_p2p_tx, set_user_phone_number, match_phone_number_to_address, \
     list_p2p_transactions_for_user_id, ack_auth_token, \
     is_user_authenticated, is_user_phone_verified, get_user_config, get_email_template_by_type, get_backup_hints, \
     generate_backup_questions_list, store_backup_hints, \
@@ -292,7 +292,7 @@ def onboard_user():
 
     # block users with an older version from onboarding. and send them a push message
     if should_block_user_by_client_version(user_id):
-        print('blocking + deactivating user %s on onboarding with older version and sending push' % user_id)
+        print('blocking + deactivating user %s on onboarding with older version' % user_id)
         # send_please_upgrade_push_2([user_id])
         # and also, deactivate the user
         deactivate_user(user_id)
@@ -732,10 +732,6 @@ def get_next_picture():
         print('blocking user %s from getting tasks: phone not verified' % user_id)
         return jsonify(pictures=[], reason='denied'), status.HTTP_403_FORBIDDEN
 
-    if user_deactivated(user_id):
-        print('user %s is deactivated. returning empty task array' % user_id)
-        return jsonify(pictures=[], reason='denied'), status.HTTP_403_FORBIDDEN
-
     picture = get_picture_for_user(user_id)
     print('picture returned for user %s: %s' % (user_id, picture))
 
@@ -757,10 +753,6 @@ def report_transaction_api():
     # don't serve users with no phone number
     if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
         print('blocking user %s from reporting transactions' % user_id)
-        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
-
-    if user_deactivated(user_id):
-        print('user %s is deactivated.' % user_id)
         return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
 
     transaction = request.get_json(silent=True)
