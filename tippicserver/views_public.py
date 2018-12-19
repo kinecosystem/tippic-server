@@ -13,13 +13,14 @@ from flask_api import status
 from tippicserver import app, config, utils
 from tippicserver.models import create_user, update_user_token, update_user_app_version, is_onboarded, set_onboarded, \
     create_tx, list_user_transactions, \
-    add_p2p_tx, set_user_phone_number, match_phone_number_to_address, user_deactivated, \
+    add_p2p_tx, set_user_phone_number, match_phone_number_to_address, \
     list_p2p_transactions_for_user_id, ack_auth_token, \
     is_user_authenticated, is_user_phone_verified, get_user_config, get_email_template_by_type, get_backup_hints, \
     generate_backup_questions_list, store_backup_hints, \
     validate_auth_token, restore_user_by_address, should_block_user_by_client_version, deactivate_user, \
     get_user_os_type, count_registrations_for_phone_number, \
-    update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids, set_username
+    update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids, set_username, block_user, \
+    get_user_blocked_users, unblock_user, report_picture, get_pictures_summery
 from tippicserver.stellar import create_account, send_kin, active_account_exists, KIN_INITIAL_REWARD
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
@@ -291,7 +292,7 @@ def onboard_user():
 
     # block users with an older version from onboarding. and send them a push message
     if should_block_user_by_client_version(user_id):
-        print('blocking + deactivating user %s on onboarding with older version and sending push' % user_id)
+        print('blocking + deactivating user %s on onboarding with older version' % user_id)
         # send_please_upgrade_push_2([user_id])
         # and also, deactivate the user
         deactivate_user(user_id)
@@ -717,6 +718,36 @@ def payment_service_callback_endpoint():
     return jsonify(status='ok')
 
 
+@app.route('/user/picture/report', methods=['POST'])
+def report_picture_endpoint():
+    """ report a picture endpoint """
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('userid %s reports a picture' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(reason='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        reported_picture_id = payload.get('picture_id', None)
+        if reported_picture_id is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if report_picture(user_id, reported_picture_id):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')
+
+
 @app.route('/user/picture', methods=['GET'])
 def get_next_picture():
     """returns current picture for user"""
@@ -731,14 +762,104 @@ def get_next_picture():
         print('blocking user %s from getting tasks: phone not verified' % user_id)
         return jsonify(reason='denied'), status.HTTP_403_FORBIDDEN
 
-    if user_deactivated(user_id):
-        print('user %s is deactivated. returning empty task array' % user_id)
-        return jsonify(reason='denied'), status.HTTP_403_FORBIDDEN
-
     picture = get_picture_for_user(user_id)
     print('picture returned for user %s: %s' % (user_id, picture))
 
     return jsonify(picture)
+
+
+@app.route('/user/pictures-summery', methods=['GET'])
+def get_pictures_summery_endpint():
+    """ return a list of shown pictures and tips sum for each"""
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('getting picture-summery for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    return jsonify(get_pictures_summery(user_id))
+
+
+@app.route('/user/block-list', methods=['GET'])
+def get_block_user_endpoint():
+    """ return user's block list """
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('getting block for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    return jsonify(get_user_blocked_users(user_id))
+
+
+@app.route('/user/unblock', methods=['POST'])
+def unblock_user_endpoint():
+    """ remove user_id from a given user's block list"""
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('setting unblock for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        user_id_to_block = payload.get('user_id', None)
+        if user_id_to_block is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if unblock_user(user_id, user_id_to_block):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')
+
+
+@app.route('/user/block', methods=['POST'])
+def block_user_endpoint():
+    """ add user_id from a given user's block list"""
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('setting block for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        user_id_to_block = payload.get('user_id', None)
+        if user_id_to_block is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if block_user(user_id, user_id_to_block):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')
 
 
 @app.route('/user/username', methods=['POST'])
@@ -753,10 +874,6 @@ def set_username_endpoint():
     # dont serve users with no phone number
     if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
         print('blocking user %s from getting tasks: phone not verified' % user_id)
-        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
-
-    if user_deactivated(user_id):
-        print('user %s is deactivated. returning empty task array' % user_id)
         return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
 
     try:

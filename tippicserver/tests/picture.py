@@ -30,25 +30,7 @@ class Tester(unittest.TestCase):
 
     def test_picture_delivery(self):
         """Test getting correct picture"""
-        picture_1 = {
-            "author": {
-                "name": "Shiran Sharnuna",
-                "public_address": "GAVIE7DPX3M2OOW3XBL2R5V5NHCVUJMHV6WSJVMNYK6YN4IB2GWRKYRQ"
-            },
-            "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
-            "title": "Random Dogs Band",
-            "picture_order_index": 1
-        }
 
-        picture_2 = {
-            "author": {
-                "name": "Aryeh Katz",
-                "public_address": "GAVIE7DPX3M2OOW3XBL2R5V5NHCVUJMHV6WSJVMNYK6YN4IB2GWRKYRQ"
-            },
-            "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
-            "title": "Random Cats Band",
-            "picture_order_index": 2
-        }
         # - call /user/picture without user_id - 400
         resp = self.app.get('/user/picture')
         self.assertEqual(resp.status_code, 400)
@@ -69,7 +51,28 @@ class Tester(unittest.TestCase):
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # - call /user/picture before phone auth - 400
+        picture_1 = {
+            "skip_image_test": "true",
+            "author": {
+                "user_id": str(userid),
+                "public_address": "GCNP7H4K7QZOBG3K7CSTHBFB4COHQHOLRM7PAZVFS5VF4OPKNN4YPCMS"
+            },
+            "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
+            "title": "Random Dogs Band",
+            "picture_order_index": 1
+        }
+
+        picture_2 = {
+            "author": {
+                "user_id": str(uuid.uuid4()),
+                "public_address": "GAVIE7DPX3M2OOW3XBL2R5V5NHCVUJMHV6WSJVMNYK6YN4IB2GWRKYRQ"
+            },
+            "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
+            "title": "Random Cats Band",
+            "picture_order_index": 2
+        }
+
+        # - call /user/picture  - 400
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid)},
                             content_type='application/json')
@@ -88,11 +91,11 @@ class Tester(unittest.TestCase):
         # userid updates his phone number to the server after client-side verification
         phone_num = '+9720528802120'
         resp = self.app.post('/user/firebase/update-id-token',
-                    data=json.dumps({
-                        'token': 'fake-token',
-                        'phone_number': phone_num}),
-                    headers={USER_ID_HEADER: str(userid)},
-                    content_type='application/json')
+                             data=json.dumps({
+                                 'token': 'fake-token',
+                                 'phone_number': phone_num}),
+                             headers={USER_ID_HEADER: str(userid)},
+                             content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
         # - call /user/picture - 200 - no pictures
@@ -111,7 +114,7 @@ class Tester(unittest.TestCase):
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # call /user/picture before phone auth - picture id 1 returns
+        # call /user/picture - picture id 1 returns
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid)},
                             content_type='application/json')
@@ -120,14 +123,25 @@ class Tester(unittest.TestCase):
         print(data)
         self.assertEqual(data['image_url'], picture_1['image_url'])
 
-        # call /user/picture before phone auth - picture id 1 returns
+        # user 1 blocks himself
+        resp = self.app.post('/user/block',
+                             data=json.dumps({
+                                 'user_id': str(userid)}),
+                             headers={USER_ID_HEADER: str(userid)},
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        print(data)
+        self.assertEqual(data['status'], "ok")
+
+        # call /user/picture - no pictures returned
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid)},
                             content_type='application/json')
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data['image_url'], picture_1['image_url'])
+        self.assertEqual(data, {'error': 'blocked_user'})
 
         # - skip user
         resp = self.app.post('/skip_picture',
@@ -137,7 +151,7 @@ class Tester(unittest.TestCase):
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # - call /user/picture before phone auth - no pictures
+        # - call /user/picture - no pictures
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid)},
                             content_type='application/json')
@@ -154,7 +168,7 @@ class Tester(unittest.TestCase):
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # call /user/picture before phone auth - picture id 2 returns
+        # call /user/picture  - picture id 2 returns
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid)},
                             content_type='application/json')
@@ -191,30 +205,54 @@ class Tester(unittest.TestCase):
         # userid updates his phone number to the server after client-side verification
         phone_num = '+9720528802121'
         resp = self.app.post('/user/firebase/update-id-token',
-                    data=json.dumps({
-                        'token': 'fake-token',
-                        'phone_number': phone_num}),
-                    headers={USER_ID_HEADER: str(userid2)},
-                    content_type='application/json')
+                             data=json.dumps({
+                                 'token': 'fake-token',
+                                 'phone_number': phone_num}),
+                             headers={USER_ID_HEADER: str(userid2)},
+                             content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # - call /user/picture before phone auth - picture id 2 returns
+        # - call /user/picture  - picture id 2 returns
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid2)},
                             content_type='application/json')
         self.assertEqual(resp.status_code, 200)
+        picture_data = json.loads(resp.data)
+        print(picture_data)
+        self.assertEqual(picture_data['image_url'], picture_2['image_url'])
+
+        # - report picture
+        resp = self.app.post('/user/picture/report',
+                             data=json.dumps({
+                                 'picture_id': picture_data['picture_id']
+                             }),
+                             headers={USER_ID_HEADER: str(userid)},
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data['image_url'], picture_2['image_url'])
+        self.assertEqual(data['status'], "ok")
 
-        # - skip user2
+        # - report same picture again - should fail
+        resp = self.app.post('/user/picture/report',
+                             data=json.dumps({
+                                 'picture_id': picture_data['picture_id']
+                             }),
+                             headers={USER_ID_HEADER: str(userid)},
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        print(data)
+        self.assertEqual(data['status'], "failed")
+
+        # - skip picture again
         resp = self.app.post('/skip_picture',
                              data=json.dumps({
                                  'skip_by': '1'
                              }), content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        # - call /user/picture before phone auth - no more pictures after skip
+        # - call /user/picture  - no more pictures after skip
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid2)},
                             content_type='application/json')
@@ -222,6 +260,7 @@ class Tester(unittest.TestCase):
         data = json.loads(resp.data)
         print(data)
         self.assertEqual(data, {})
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,12 +1,13 @@
 """The User model"""
 import logging as log
 from distutils.version import LooseVersion
-from time import sleep
 from uuid import uuid4
 
 import arrow
 from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy_utils import UUIDType
+
 from tippicserver import db, config, app
 from tippicserver.utils import InvalidUsage, parse_phone_number, increment_metric, get_global_config, OS_ANDROID, \
     OS_IOS, commit_json_changed_to_orm
@@ -45,6 +46,44 @@ class User(db.Model):
                % (self.sid, self.user_id, self.os_type, self.device_model, self.push_token, self.time_zone,
                   self.device_id, self.onboarded, self.public_address, self.enc_phone_number, self.package_id,
                   self.deactivated)
+
+
+def unblock_user(user_id, user_id_to_unblock):
+    """ add user_id_to_block to user's blocked list """
+    try:
+        user_app_data = get_user_app_data(user_id)
+        # check if user-to-be-block is valid
+        user_to_block = get_user(user_id_to_unblock)
+        if None in (user_to_block, user_app_data):
+            raise InvalidUsage('no such user_id')
+    except Exception:
+        return False
+    else:
+        user_app_data.blocked_users.remove(user_id_to_unblock)
+        flag_modified(user_app_data, "blocked_users")
+        db.session.add(user_app_data)
+        db.session.commit()
+        return True
+
+
+def block_user(user_id, user_id_to_block):
+    """ add user_id_to_block to user's blocked list """
+    try:
+        user_app_data = get_user_app_data(user_id)
+        # check if user-to-be-block is valid
+        user_to_block = get_user(user_id_to_block)
+        if None in (user_to_block, user_app_data):
+            raise InvalidUsage('no such user_id')
+    except Exception:
+        return False
+    else:
+        if not user_app_data.blocked_users:
+            user_app_data.blocked_users = list()
+        user_app_data.blocked_users.append(user_id_to_block)
+        flag_modified(user_app_data, "blocked_users")
+        db.session.add(user_app_data)
+        db.session.commit()
+        return True
 
 
 def set_username(user_id, username):
@@ -195,7 +234,13 @@ class UserAppData(db.Model):
 def get_user_blocked_users(user_id):
     """ return list of blocked users for a given user """
     user_app_data = get_user_app_data(user_id)
-    return user_app_data.blocked_users
+    if not user_app_data.blocked_users:
+        return []
+
+    user_ids = "\',\'".join(user_app_data.blocked_users)
+    rows = db.engine.execute("select user_id,username from public.user where user_id in ('%s')" % user_ids).fetchall()
+    results = [dict(item) for item in rows]
+    return results
 
 
 def update_user_app_version(user_id, app_ver):
@@ -472,9 +517,6 @@ def set_user_phone_number(user_id, number):
             db.session.add(user)
             db.session.commit()
 
-        # does this number belong to another user? if so, de-activate the old user.
-        deactivate_by_enc_phone_number(encrypted_number, user_id)
-
     except Exception as e:
         log.error('cant add phone number %s to user_id: %s. Exception: %s' % (number, user_id, e))
         raise
@@ -631,22 +673,16 @@ def get_associated_user_ids(user_id):
         return [str(user.user_id) for user in users]
 
 
-def nuke_user_data(phone_number, nuke_all=False):
-    """nuke user's data by phone number. by default only nuke the active user"""
-    # find the active user with this number:
-    if nuke_all:
-        log.info('nuking all users with the phone number: %s' % phone_number)
-        user_ids = get_all_user_id_by_phone(phone_number)
-    else:
-        # only the active user
-        log.info('nuking the active user with the phone number: %s' % phone_number)
-        user_ids = [get_active_user_id_by_phone(phone_number)]
+def nuke_user_data(phone_number):
+    """nuke user's data by phone number """
+    log.info('nuking all users with the phone number: %s' % phone_number)
+    user_ids = get_all_user_id_by_phone(phone_number)
     for user_id in user_ids:
-        db.engine.execute("delete from good where tx_hash in (select tx_hash from transaction where user_id='%s')" % user_id)
+        db.engine.execute("update public.user set onboarded = false where user_id = '%s'" % user_id)
         db.engine.execute("delete from public.transaction where user_id='%s'" % user_id)
 
     # also erase the backup hints for the phone
-    db.engine.execute("delete from phone_backup_hints where enc_phone_number='%s'" % app.encryption.encrypt(phone_number))
+    # db.engine.execute("delete from phone_backup_hints where enc_phone_number='%s'" % app.encryption.encrypt(phone_number))
 
     return user_ids if len(user_ids) > 0 else None
 
