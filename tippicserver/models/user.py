@@ -23,6 +23,7 @@ class User(db.Model):
     """
     sid = db.Column(db.Integer(), db.Sequence('sid', start=1, increment=1), primary_key=False)
     user_id = db.Column(UUIDType(binary=False), primary_key=True, nullable=False)
+    username = db.Column(db.String(40), primary_key=False, nullable=True)
     os_type = db.Column(db.String(10), primary_key=False, nullable=False)
     device_model = db.Column(db.String(DEVICE_MODEL_MAX_SIZE), primary_key=False, nullable=False)
     push_token = db.Column(db.String(200), primary_key=False, nullable=True)
@@ -37,12 +38,31 @@ class User(db.Model):
     package_id = db.Column(db.String(60), primary_key=False, nullable=True)
 
 
+
     def __repr__(self):
         return '<sid: %s, user_id: %s, os_type: %s, device_model: %s, push_token: %s, time_zone: %s, device_id: %s,' \
                ' onboarded: %s, public_address: %s, enc_phone_number: %s, package_id: %s, deactivated: %s'\
                % (self.sid, self.user_id, self.os_type, self.device_model, self.push_token, self.time_zone,
                   self.device_id, self.onboarded, self.public_address, self.enc_phone_number, self.package_id,
                   self.deactivated)
+
+
+def set_username(user_id, username):
+    """ set user's username """
+    try:
+        user = get_user(user_id)
+    except Exception:
+        return False
+    else:
+        # is the requested username is taken?
+        row = User.query.filter_by(username=username).first()
+        if not row:
+            user.username = username
+            db.session.add(user)
+            db.session.commit()
+            return True
+        else:
+            return False
 
 
 def get_user(user_id):
@@ -168,8 +188,14 @@ class UserAppData(db.Model):
     ip_address = db.Column(INET) # the user's last known ip
     country_iso_code = db.Column(db.String(10))  # country iso code based on last ip
     captcha_history = db.Column(db.JSON)
+    blocked_users = db.Column(db.JSON)
     should_solve_captcha_ternary = db.Column(db.Integer, unique=False, default=0, nullable=False)  # -1 = no captcha, 0 = show captcha on next task, 1 = captcha required
 
+
+def get_user_blocked_users(user_id):
+    """ return list of blocked users for a given user """
+    user_app_data = get_user_app_data(user_id)
+    return user_app_data.blocked_users
 
 
 def update_user_app_version(user_id, app_ver):

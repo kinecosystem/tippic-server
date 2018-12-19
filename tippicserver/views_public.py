@@ -19,7 +19,7 @@ from tippicserver.models import create_user, update_user_token, update_user_app_
     generate_backup_questions_list, store_backup_hints, \
     validate_auth_token, restore_user_by_address, should_block_user_by_client_version, deactivate_user, \
     get_user_os_type, count_registrations_for_phone_number, \
-    update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids
+    update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids, set_username
 from tippicserver.stellar import create_account, send_kin, active_account_exists, KIN_INITIAL_REWARD
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
@@ -729,13 +729,47 @@ def get_next_picture():
     # dont serve users with no phone number
     if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
         print('blocking user %s from getting tasks: phone not verified' % user_id)
-        return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
+        return jsonify(reason='denied'), status.HTTP_403_FORBIDDEN
 
     if user_deactivated(user_id):
         print('user %s is deactivated. returning empty task array' % user_id)
-        return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
+        return jsonify(reason='denied'), status.HTTP_403_FORBIDDEN
 
     picture = get_picture_for_user(user_id)
     print('picture returned for user %s: %s' % (user_id, picture))
 
     return jsonify(picture)
+
+
+@app.route('/user/username', methods=['POST'])
+def set_username_endpoint():
+    """ set users username """
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('setting username for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    if user_deactivated(user_id):
+        print('user %s is deactivated. returning empty task array' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        username = payload.get('username', None)
+        if username is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if set_username(user_id, username):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')

@@ -1,6 +1,12 @@
 from tippicserver import db
-from tippicserver.models import SystemConfig
+from tippicserver.models import SystemConfig, User, UUIDType, get_user_app_data
 from tippicserver.utils import InvalidUsage
+
+
+class ReportedPictures(db.Model):
+    picture_id = db.Column(db.String(40), nullable=False, primary_key=True)
+    reporter_id = db.Column('user_id', UUIDType(binary=False), db.ForeignKey("user.user_id"), primary_key=True,
+                            nullable=False)
 
 
 class Picture(db.Model):
@@ -31,16 +37,26 @@ def picture_to_json(picture):
     picture_json['title'] = picture.title
     picture_json['image_url'] = picture.image_url
     picture_json['author'] = picture.author
+
+    # add picture author name
+    user = User.query.filter_by(User.user_id == picture.picture_id).first()
+    if user:
+        picture_json['author']['name'] = user.username
+
     return picture_json
 
 
 def get_picture_for_user(user_id):
     """ get next picture for this user"""
     system_config = SystemConfig.query.first()
+    user_app_data = get_user_app_data(user_id)
 
     if system_config is None:
         # deliver the first image in the order
         new_picture = Picture.query.order_by(Picture.picture_order_index).first()
+        # if user is blocked, return error message
+        if new_picture.author['user_id'] in user_app_data:
+            return {"error": "blocked_user"}
         # we might not have images in the db at all
         if new_picture is None:
             return {}
