@@ -446,9 +446,6 @@ def set_user_phone_number(user_id, number):
             db.session.add(user)
             db.session.commit()
 
-        # does this number belong to another user? if so, de-activate the old user.
-        deactivate_by_enc_phone_number(encrypted_number, user_id)
-
     except Exception as e:
         log.error('cant add phone number %s to user_id: %s. Exception: %s' % (number, user_id, e))
         raise
@@ -605,22 +602,16 @@ def get_associated_user_ids(user_id):
         return [str(user.user_id) for user in users]
 
 
-def nuke_user_data(phone_number, nuke_all=False):
-    """nuke user's data by phone number. by default only nuke the active user"""
-    # find the active user with this number:
-    if nuke_all:
-        log.info('nuking all users with the phone number: %s' % phone_number)
-        user_ids = get_all_user_id_by_phone(phone_number)
-    else:
-        # only the active user
-        log.info('nuking the active user with the phone number: %s' % phone_number)
-        user_ids = [get_active_user_id_by_phone(phone_number)]
+def nuke_user_data(phone_number):
+    """nuke user's data by phone number """
+    log.info('nuking all users with the phone number: %s' % phone_number)
+    user_ids = get_all_user_id_by_phone(phone_number)
     for user_id in user_ids:
-        db.engine.execute("delete from good where tx_hash in (select tx_hash from transaction where user_id='%s')" % user_id)
+        db.engine.execute("update public.user set onboarded = false where user_id = '%s'" % user_id)
         db.engine.execute("delete from public.transaction where user_id='%s'" % user_id)
 
     # also erase the backup hints for the phone
-    db.engine.execute("delete from phone_backup_hints where enc_phone_number='%s'" % app.encryption.encrypt(phone_number))
+    # db.engine.execute("delete from phone_backup_hints where enc_phone_number='%s'" % app.encryption.encrypt(phone_number))
 
     return user_ids if len(user_ids) > 0 else None
 
