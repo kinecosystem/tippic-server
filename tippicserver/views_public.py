@@ -19,7 +19,8 @@ from tippicserver.models import create_user, update_user_token, update_user_app_
     generate_backup_questions_list, store_backup_hints, \
     validate_auth_token, restore_user_by_address, should_block_user_by_client_version, deactivate_user, \
     get_user_os_type, count_registrations_for_phone_number, \
-    update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids
+    update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids, report_transaction, \
+    user_exists
 from tippicserver.stellar import create_account, send_kin, active_account_exists, KIN_INITIAL_REWARD
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
@@ -728,10 +729,35 @@ def get_next_picture():
 
     # dont serve users with no phone number
     if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
-        print('blocking user %s from getting pictures: phone not verified' % user_id)
-        return jsonify(tasks=[], reason='denied'), status.HTTP_403_FORBIDDEN
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(pictures=[], reason='denied'), status.HTTP_403_FORBIDDEN
 
     picture = get_picture_for_user(user_id)
     print('picture returned for user %s: %s' % (user_id, picture))
 
     return jsonify(picture)
+
+
+@app.route('/user/transaction/report', methods=['POST'])
+def report_transaction_api():
+    """ store a given transaction in the database """
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    if not user_exists(user_id):
+        raise InvalidUsage('report_transaction_api: user_id %s does not exist. aborting' % user_id)
+
+    print('getting picture for user_id %s' % user_id)
+
+    # don't serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from reporting transactions' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    transaction = request.get_json(silent=True)
+    transaction['user_id'] = user_id
+    if report_transaction(transaction):
+        return jsonify(status='ok')
+    else:
+        raise InvalidUsage('failed to add picture')

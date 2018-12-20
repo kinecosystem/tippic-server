@@ -1,108 +1,29 @@
 """The model for the Kin App Server."""
-import datetime
 import logging as log
 
-from sqlalchemy_utils import UUIDType
 from sqlalchemy import desc
-import arrow
+from sqlalchemy_utils import UUIDType
 
-from tippicserver import db, stellar
+from tippicserver import db, stellar, config
 
 
 class Transaction(db.Model):
     """
-    kin transactions: from and to the server
+    Tippic transactions: from and to the server
     """
-    user_id = db.Column('user_id', UUIDType(binary=False), db.ForeignKey("user.user_id"), primary_key=False, nullable=False)
     tx_hash = db.Column(db.String(100), nullable=False, primary_key=True)
+    user_id = db.Column('user_id', UUIDType(binary=False), db.ForeignKey("user.user_id"), primary_key=False,
+                        nullable=False)
+    to_address = db.Column(db.String(60), primary_key=False, unique=False, nullable=False)
     amount = db.Column(db.Integer(), nullable=False, primary_key=False)
-    incoming_tx = db.Column(db.Boolean, unique=False, default=False)  # are the moneys coming or going
-    remote_address = db.Column(db.String(100), nullable=False, primary_key=False)
-    tx_info = db.Column(db.JSON)
+    tx_for_item_id = db.Column(db.String(100), nullable=False, primary_key=False)
+    tx_type = db.Column(db.String(20), primary_key=False, unique=False, nullable=False)
     update_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now())
 
     def __repr__(self):
-        return '<tx_hash: %s, user_id: %s, amount: %s, remote_address: %s, incoming_tx: %s, tx_info: %s,  update_at: %s>' % (self.tx_hash, self.user_id, self.amount, self.remote_address, self.incoming_tx, self.tx_info, self.update_at)
-
-
-def get_offers_bought_in_days_ago(user_id, days):
-    """return true if user already reclaimed this offer in offers time period"""
-    from datetime import datetime, timedelta
-    date_days_from_now = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    txs = db.engine.execute("select tx_info from public.transaction where incoming_tx=true and user_id='%s' and update_at > ('%s'::date);" % (user_id, date_days_from_now)).fetchall()
-    jsons = [item[0] for item in txs]
-    return jsons
-
-
-def list_user_transactions(user_id, max_txs=None):
-    """returns all txs by this user - or the last x tx if max_txs was passed"""
-    txs = Transaction.query.filter(Transaction.user_id == user_id).order_by(desc(Transaction.update_at)).all()
-    # trim the amount of txs
-    txs = txs[:max_txs] if max_txs and max_txs > len(txs) else txs
-    return txs
-
-
-def create_tx(tx_hash, user_id, remote_address, incoming_tx, amount, tx_info):
-    try:
-        tx = Transaction()
-        tx.tx_hash = tx_hash
-        tx.user_id = user_id
-        tx.amount = int(amount)
-        tx.incoming_tx = bool(incoming_tx)
-        tx.remote_address = remote_address
-        tx.tx_info = tx_info
-        db.session.add(tx)
-        db.session.commit()
-    except Exception as e:
-        log.error('cant add tx to db with id %s' % tx_hash)
-    else:
-        log.info('created tx with txinfo: %s' % tx.tx_info)
-
-def count_transactions_by_minutes_ago(minutes_ago=1):
-    """return the number of failed txs since minutes_ago"""
-    time_minutes_ago = datetime.datetime.now() - datetime.timedelta(minutes=minutes_ago)
-    return len(Transaction.query.filter(Transaction.update_at >= time_minutes_ago).all())
-
-
-def get_memo_for_user_ids(user_ids, task_id):
-    """"return the memo of the transaction or None for the given list of user_ids and task_id
-
-    this function tries to find the memo of for the tx that relates to the given task_id and
-    any of the given user_ids. only one memo is returned along with its associated user_id. or (None, None).
-    """
-    user_ids = "\',\'".join(user_ids)
-    task_id = int(task_id)  # sanitize input
-    prep_stat = "select (user_id, tx_info->>'memo') from public.transaction where user_id in ('%s') and tx_info->>'task_id' LIKE '%s' fetch first 1 rows only" % (user_ids, task_id)
-    results = db.engine.execute(prep_stat)
-    row = results.fetchone()
-    if row is None:
-        return None, None
-    else:
-        comma_index = row[0].find(',')  # ugh. its actually a concatenated string
-        memo = row[0][comma_index+1:]
-        user_id = row[0][:comma_index-1]
-        return memo, user_id
-
-
-def update_tx_ts(tx_hash, timestamp):
-    tx = Transaction.query.filter_by(tx_hash=tx_hash).first()
-    tx.update_at = timestamp
-    db.session.add(tx)
-    db.session.commit()
-
-
-def get_user_tx_report(user_id):
-    """return a json with all the interesting user-tx stuff"""
-    print('getting user tx report for %s' % user_id)
-    user_tx_report = {}
-    try:
-        txs = list_user_transactions(user_id)
-        for tx in txs:
-            user_tx_report[tx.tx_hash] = {'amount': tx.amount, 'in': tx.incoming_tx, 'date': tx.update_at, 'info': tx.tx_info, 'address': tx.remote_address}
-
-    except Exception as e:
-        log.error('caught exception in get_user_tx_report:%s' % e)
-    return user_tx_report
+        return '<tx_hash: %s, type: %s, user_id: %s, amount: %s, to_address: %s, tx_for_item_id: %s,  update_at: %s>' % \
+               (self.tx_hash, self.tx_type, self.user_id, self.amount, self.to_address, self.tx_for_item_id,
+                self.update_at)
 
 
 def get_tx_totals():
@@ -113,3 +34,67 @@ def get_tx_totals():
     totals['from_public'] = db.engine.execute(prep_stat).scalar()
 
     return totals
+
+
+def report_transaction(tx_json):
+    """ store a given transaction in the database """
+
+    # check if tx_hash already in db
+    tx = Transaction.query.filter(Transaction.tx_hash == tx_json['tx_hash']).first()
+    if tx:
+        return False
+
+    # if not test - make sure transaction is valid
+    try:
+        valid, data = stellar.extract_tx_payment_data(tx_json['tx_hash'])
+        if not config.DEBUG and not valid:
+            return False
+    except Exception as e:
+        print("Exception occurred for tx_hash = %s:\n%s" % (tx_json['tx_hash'], e))
+        return False
+    # store transaction
+    return create_tx(tx_json['tx_hash'], tx_json['user_id'], tx_json['to_address'], tx_json['amount'],
+                     tx_json['type'], tx_json['id'])
+
+
+def list_user_transactions(user_id, max_txs=None):
+    """returns all txs by this user - or the last x tx if max_txs was passed"""
+    txs = Transaction.query.filter(Transaction.user_id == user_id).order_by(desc(Transaction.update_at)).all()
+    # trim the amount of txs
+    txs = txs[:max_txs] if max_txs and max_txs > len(txs) else txs
+    return txs
+
+
+def create_tx(tx_hash, user_id, to_address, amount, tx_type, tx_for_item_id):
+    try:
+        tx = Transaction()
+        tx.tx_hash = tx_hash
+        tx.user_id = user_id
+        tx.amount = int(amount)
+        tx.to_address = to_address
+        tx.tx_type = tx_type
+        tx.tx_for_item_id = tx_for_item_id
+        db.session.add(tx)
+        db.session.commit()
+    except Exception as e:
+        print(e)
+        log.error('cant add tx to db with id %s' % tx_hash)
+    else:
+        log.info('created tx with tx_hash: %s' % tx.tx_hash)
+        return True
+
+    return False
+
+
+def get_user_tx_report(user_id):
+    """return a json with all the interesting user-tx stuff"""
+    print('getting user tx report for %s' % user_id)
+    user_tx_report = {}
+    try:
+        txs = list_user_transactions(user_id)
+        for tx in txs:
+            user_tx_report[tx.tx_hash] = {'amount': tx.amount, 'date': tx.update_at, 'to_address': tx.to_address}
+
+    except Exception as e:
+        log.error('caught exception in get_user_tx_report:%s' % e)
+    return user_tx_report
