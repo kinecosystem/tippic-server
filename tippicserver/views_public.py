@@ -20,7 +20,7 @@ from tippicserver.models import create_user, update_user_token, update_user_app_
     validate_auth_token, restore_user_by_address, should_block_user_by_client_version, deactivate_user, \
     get_user_os_type, count_registrations_for_phone_number, \
     update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids, report_transaction, \
-    user_exists
+    user_exists, set_username, block_user, unblock_user, get_pictures_summery, get_user_blocked_users, report_picture
 from tippicserver.stellar import create_account, send_kin, active_account_exists, KIN_INITIAL_REWARD
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
@@ -718,6 +718,36 @@ def payment_service_callback_endpoint():
     return jsonify(status='ok')
 
 
+@app.route('/user/picture/report', methods=['POST'])
+def report_picture_endpoint():
+    """ report a picture endpoint """
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('userid %s reports a picture' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(reason='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        reported_picture_id = payload.get('picture_id', None)
+        if reported_picture_id is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if report_picture(user_id, reported_picture_id):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')
+
+
 @app.route('/user/picture', methods=['GET'])
 def get_next_picture():
     """returns current picture for user"""
@@ -730,12 +760,136 @@ def get_next_picture():
     # dont serve users with no phone number
     if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
         print('blocking user %s from getting tasks: phone not verified' % user_id)
-        return jsonify(pictures=[], reason='denied'), status.HTTP_403_FORBIDDEN
+        return jsonify(reason='denied'), status.HTTP_403_FORBIDDEN
 
     picture = get_picture_for_user(user_id)
     print('picture returned for user %s: %s' % (user_id, picture))
+    if picture.get('blocked', False):
+        return jsonify(error="blocked_user")
+    return jsonify(picture=picture)
 
-    return jsonify(picture)
+
+@app.route('/user/pictures-summery', methods=['GET'])
+def get_pictures_summery_endpoint():
+    """ return a list of shown pictures and tips sum for each"""
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('getting picture-summery for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+    return jsonify(summery=get_pictures_summery(user_id))
+
+
+@app.route('/user/block-list', methods=['GET'])
+def get_block_user_endpoint():
+    """ return user's block list """
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('getting block for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    return jsonify(get_user_blocked_users(user_id))
+
+
+@app.route('/user/unblock', methods=['POST'])
+def unblock_user_endpoint():
+    """ remove user_id from a given user's block list"""
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('setting unblock for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        user_id_to_block = payload.get('user_id', None)
+        if user_id_to_block is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if unblock_user(user_id.lower(), user_id_to_block.lower()):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')
+
+
+@app.route('/user/block', methods=['POST'])
+def block_user_endpoint():
+    """ add user_id from a given user's block list"""
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('setting block for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        user_id_to_block = payload.get('user_id', None)
+        if user_id_to_block is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if block_user(user_id.lower(), user_id_to_block.lower()):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')
+
+
+@app.route('/user/username', methods=['POST'])
+def set_username_endpoint():
+    """ set users username """
+    user_id, auth_token = extract_headers(request)
+    if user_id is None:
+        raise InvalidUsage('invalid payload')
+
+    print('setting username for userid %s' % user_id)
+
+    # dont serve users with no phone number
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user %s from getting tasks: phone not verified' % user_id)
+        return jsonify(status='denied'), status.HTTP_403_FORBIDDEN
+
+    try:
+        payload = request.get_json(silent=True)
+        username = payload.get('username', None)
+        if username is None:
+            raise InvalidUsage('bad-request')
+
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+
+    if set_username(user_id, username):
+        return jsonify(status='ok')
+    else:
+        return jsonify(status='failed')
 
 
 @app.route('/user/transaction/report', methods=['POST'])

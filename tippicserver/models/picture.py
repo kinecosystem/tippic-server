@@ -1,6 +1,34 @@
+import json
+
 from tippicserver import db
-from tippicserver.models import SystemConfig
+from tippicserver.models import SystemConfig, User, UUIDType, get_user_app_data, Transaction
 from tippicserver.utils import InvalidUsage
+
+
+class ReportedPictures(db.Model):
+    picture_id = db.Column(db.String(40), nullable=False, primary_key=True)
+    reporter_id = db.Column('user_id', UUIDType(binary=False), db.ForeignKey("user.user_id"), primary_key=True,
+                            nullable=False)
+    update_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now())
+
+
+def report_picture(user_id, picture_id):
+    """ report a picture """
+    print("reporting picture_id = %s" % picture_id)
+
+    reported_picture = ReportedPictures()
+    try:
+        reported_picture.picture_id = picture_id.lower()
+        reported_picture.reporter_id = user_id.lower()
+        db.session.add(reported_picture)
+        db.session.commit()
+    except Exception as e:
+        print(e)
+        print(str(e.__traceback__))
+        print('cant add pictureReport to db with picture_id %s' % picture_id)
+        return False
+    else:
+        return True
 
 
 class Picture(db.Model):
@@ -17,8 +45,11 @@ class Picture(db.Model):
     is_active = db.Column(db.Boolean, unique=False, default=True)
 
     def __repr__(self):
-        return '<picture_id: %s, min_client_version_ios: %s, delay_days: %s>' % \
-               (self.picture_id, self.min_client_version_ios, self.delay_days)
+        return '<picture_id: %s, ' \
+               'picture_order_index: %s,' \
+               'title: %s,' \
+               'author: %s, ' \
+               'image_url: %s>' % (self.picture_id, self.picture_order_index,self.title, self.author, self.image_url)
 
 
 def picture_to_json(picture):
@@ -31,12 +62,39 @@ def picture_to_json(picture):
     picture_json['title'] = picture.title
     picture_json['image_url'] = picture.image_url
     picture_json['author'] = picture.author
+
+    # add picture author name
+    user = User.query.filter_by(user_id=picture.author['user_id']).first()
+    if user:
+        picture_json['author']['name'] = user.username
+
     return picture_json
+
+
+def get_pictures_summery(user_id):
+    """ return a list of shown pictures and tips sum for each"""
+
+    # get current shown picture order index
+    # loop from 0 to index
+    # for each get - if picture author is this user - get the id
+    # for each id, sum tips from transactions table
+    system_config = SystemConfig.query.first()
+    if system_config is not None:
+        current_picture_index = system_config.current_picture_index
+        pictures = Picture.query.filter(Picture.picture_order_index <= current_picture_index).all()
+        user_pictures = [picture_to_json(item) for item in pictures if item.author['user_id'] == user_id]
+        for picture in user_pictures:
+            total = db.engine.execute(
+                "select sum(amount) as total from Transaction where tx_for_item_id = '%s'" % picture['picture_id'])
+            picture['tips_sum'] = total.first()['total'] or 0
+        return user_pictures
+    return []
 
 
 def get_picture_for_user(user_id):
     """ get next picture for this user"""
     system_config = SystemConfig.query.first()
+    user_app_data = get_user_app_data(user_id)
 
     if system_config is None:
         # deliver the first image in the order
@@ -44,6 +102,10 @@ def get_picture_for_user(user_id):
         # we might not have images in the db at all
         if new_picture is None:
             return {}
+        # if user is blocked, return error message
+        if user_app_data and user_app_data.blocked_users \
+                and new_picture.author['user_id'] in user_app_data.blocked_users:
+            return {"blocked": True}
 
         try:
             # store the delivered image information
@@ -60,8 +122,14 @@ def get_picture_for_user(user_id):
         # TODO: cache this
         # deliver the current picture
         new_picture = Picture.query.filter_by(picture_order_index=system_config.current_picture_index).first()
+
         if not new_picture:
             return {}
+
+        if user_app_data and user_app_data.blocked_users \
+                and new_picture.author['user_id'] in user_app_data.blocked_users:
+            return {"blocked": True}
+
         return picture_to_json(new_picture)
 
 
@@ -99,7 +167,7 @@ def add_picture(picture_json, set_active=True):
         db.session.add(picture)
         db.session.commit()
     except Exception as e:
-        print(e)
+        print(e.__traceback__)
         print('cant add picture to db with picture_id %s' % picture.picture_id)
         return False
     else:
