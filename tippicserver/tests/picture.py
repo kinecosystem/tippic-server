@@ -62,16 +62,6 @@ class Tester(unittest.TestCase):
             "picture_order_index": 1
         }
 
-        picture_2 = {
-            "author": {
-                "user_id": str(uuid.uuid4()),
-                "public_address": "GAVIE7DPX3M2OOW3XBL2R5V5NHCVUJMHV6WSJVMNYK6YN4IB2GWRKYRQ"
-            },
-            "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
-            "title": "Random Cats Band",
-            "picture_order_index": 2
-        }
-
         # - call /user/picture  - 400
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid)},
@@ -105,7 +95,16 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data, {})
+        self.assertEqual(data, {'picture': {}})
+
+        # get viewed picture summery
+        resp = self.app.get('/user/pictures-summery',
+                            headers={USER_ID_HEADER: str(userid)},
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        print(data)
+        self.assertEqual(data['summery'], [])
 
         # add a picture
         resp = self.app.post('/picture',
@@ -121,7 +120,16 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data['image_url'], picture_1['image_url'])
+        self.assertEqual(data['picture']['image_url'], picture_1['image_url'])
+
+        # get viewed picture summery
+        resp = self.app.get('/user/pictures-summery',
+                            headers={USER_ID_HEADER: str(userid)},
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        print(data)
+        self.assertEqual(data['summery'][0]['image_url'], picture_1['image_url'])
 
         # user 1 blocks himself
         resp = self.app.post('/user/block',
@@ -158,24 +166,7 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data, {})
-
-        # - add a picture
-        resp = self.app.post('/picture',
-                             data=json.dumps({
-                                 'picture': picture_2}),
-                             headers={},
-                             content_type='application/json')
-        self.assertEqual(resp.status_code, 200)
-
-        # call /user/picture  - picture id 2 returns
-        resp = self.app.get('/user/picture',
-                            headers={USER_ID_HEADER: str(userid)},
-                            content_type='application/json')
-        self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.data)
-        print(data)
-        self.assertEqual(data['image_url'], picture_2['image_url'])
+        self.assertEqual(data, {'picture': {}})
 
         # - create a new *ios* Tippic user2
         # register a user
@@ -212,12 +203,39 @@ class Tester(unittest.TestCase):
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
+        picture_2 = {
+            "author": {
+                "user_id": str(userid2),
+                "public_address": "GAVIE7DPX3M2OOW3XBL2R5V5NHCVUJMHV6WSJVMNYK6YN4IB2GWRKYRQ"
+            },
+            "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
+            "title": "Random Cats Band",
+            "picture_order_index": 2
+        }
+
+        # - add a picture
+        resp = self.app.post('/picture',
+                             data=json.dumps({
+                                 'picture': picture_2}),
+                             headers={},
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # call /user/picture  - picture id 2 returns
+        resp = self.app.get('/user/picture',
+                            headers={USER_ID_HEADER: str(userid)},
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        print(data)
+        self.assertEqual(data['picture']['image_url'], picture_2['image_url'])
+
         # - call /user/picture  - picture id 2 returns
         resp = self.app.get('/user/picture',
                             headers={USER_ID_HEADER: str(userid2)},
                             content_type='application/json')
         self.assertEqual(resp.status_code, 200)
-        picture_data = json.loads(resp.data)
+        picture_data = json.loads(resp.data)['picture']
         print(picture_data)
         self.assertEqual(picture_data['image_url'], picture_2['image_url'])
 
@@ -259,7 +277,8 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         print(data)
-        self.assertEqual(data, {})
+
+        self.assertEqual(data, {'picture': {}})
 
 
 if __name__ == '__main__':

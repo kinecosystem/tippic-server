@@ -1,5 +1,7 @@
+import json
+
 from tippicserver import db
-from tippicserver.models import SystemConfig, User, UUIDType, get_user_app_data
+from tippicserver.models import SystemConfig, User, UUIDType, get_user_app_data, Transaction
 from tippicserver.utils import InvalidUsage
 
 
@@ -16,13 +18,14 @@ def report_picture(user_id, picture_id):
 
     reported_picture = ReportedPictures()
     try:
-        reported_picture.picture_id = picture_id
-        reported_picture.reporter_id = user_id
+        reported_picture.picture_id = picture_id.lower()
+        reported_picture.reporter_id = user_id.lower()
         db.session.add(reported_picture)
         db.session.commit()
     except Exception as e:
-        print(e.__traceback__)
-        print('cant add picture to db with picture_id %s' % picture_id)
+        print(e)
+        print(str(e.__traceback__))
+        print('cant add pictureReport to db with picture_id %s' % picture_id)
         return False
     else:
         return True
@@ -42,8 +45,11 @@ class Picture(db.Model):
     is_active = db.Column(db.Boolean, unique=False, default=True)
 
     def __repr__(self):
-        return '<picture_id: %s, min_client_version_ios: %s, delay_days: %s>' % \
-               (self.picture_id, self.min_client_version_ios, self.delay_days)
+        return '<picture_id: %s, ' \
+               'picture_order_index: %s,' \
+               'title: %s,' \
+               'author: %s, ' \
+               'image_url: %s>' % (self.picture_id, self.picture_order_index,self.title, self.author, self.image_url)
 
 
 def picture_to_json(picture):
@@ -75,10 +81,15 @@ def get_pictures_summery(user_id):
     system_config = SystemConfig.query.first()
     if system_config is not None:
         current_picture_index = system_config.current_picture_index
-        pictures = Picture.query.filter_by(Picture.picture_order_index <= current_picture_index).all()
-        user_submitted_pictures = [item for item in pictures if item.author['user_id'] == user_id]
-
+        pictures = Picture.query.filter(Picture.picture_order_index <= current_picture_index).all()
+        user_pictures = [picture_to_json(item) for item in pictures if item.author['user_id'] == user_id]
+        for picture in user_pictures:
+            total = db.engine.execute(
+                "select sum(amount) as total from Transaction where tx_for_item_id = '%s'" % picture['picture_id'])
+            picture['tips_sum'] = total.first()['total'] or 0
+        return user_pictures
     return []
+
 
 def get_picture_for_user(user_id):
     """ get next picture for this user"""
@@ -94,7 +105,7 @@ def get_picture_for_user(user_id):
         # if user is blocked, return error message
         if user_app_data and user_app_data.blocked_users \
                 and new_picture.author['user_id'] in user_app_data.blocked_users:
-            return {"error": "blocked_user"}
+            return {"blocked": True}
 
         try:
             # store the delivered image information
@@ -117,7 +128,7 @@ def get_picture_for_user(user_id):
 
         if user_app_data and user_app_data.blocked_users \
                 and new_picture.author['user_id'] in user_app_data.blocked_users:
-            return {"error": "blocked_user"}
+            return {"blocked": True}
 
         return picture_to_json(new_picture)
 
