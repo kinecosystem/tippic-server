@@ -7,11 +7,18 @@ import random
 import logging as log
 ASSET_NAME = 'KIN'
 TX_MEMO_PREFIX = '1-TPIC'
-KIN_INITIAL_REWARD = 15
+
+
+def get_initial_reward():
+    if config.DEBUG:
+        return 500
+    else:
+        return 15
 
 def active_account_exists(public_address):
     """check if an active account exists"""
-    return app.kin_sdk.check_account_exists(public_address) and app.kin_sdk.check_account_active(public_address)
+    return app.kin_sdk.check_account_exists(public_address) and app.kin_sdk.check_account_activated(public_address)
+
 
 def create_account(public_address, initial_xlm_amount):
     """create an account for the given public address"""

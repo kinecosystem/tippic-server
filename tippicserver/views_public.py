@@ -21,7 +21,7 @@ from tippicserver.models import create_user, update_user_token, update_user_app_
     get_user_os_type, count_registrations_for_phone_number, \
     update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids, report_transaction, \
     user_exists, set_username, block_user, unblock_user, get_pictures_summery, get_user_blocked_users, report_picture
-from tippicserver.stellar import create_account, send_kin, active_account_exists, KIN_INITIAL_REWARD
+from tippicserver.stellar import create_account, send_kin, active_account_exists, get_initial_reward
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
     get_global_config, read_payment_data_from_cache
@@ -302,7 +302,7 @@ def onboard_user():
         raise InvalidUsage('user isnt phone verified')
 
     onboarded = is_onboarded(user_id)
-    if onboarded is True:
+    if onboarded is True and not config.DEBUG:
         raise InvalidUsage('user already has an account and has been awarded')
     elif onboarded is None:
         raise InvalidUsage('no such user exists')
@@ -317,7 +317,9 @@ def onboard_user():
                     if not tx_id:
                         raise InternalError('failed to create account at %s' % public_address)
                     elif not award_user(user_id, public_address):
-                        raise InternalError('unable to award user with %d Kin' % KIN_INITIAL_REWARD)
+                        raise InternalError('unable to award user with %d Kin' % get_initial_reward())
+                elif not award_user(user_id, public_address):
+                    raise InternalError('unable to award user with %d Kin' % get_initial_reward())
             except Exception as e:
                 print('exception trying to create account:%s' % e)
                 raise InternalError('unable to create account')
@@ -332,22 +334,24 @@ def onboard_user():
 
 def award_user(user_id, public_address):
     onboarded = False
-    for other_id in get_associated_user_ids(user_id):
-        if is_onboarded(other_id):
-            set_onboarded(user_id, True, public_address)
-            onboarded = True
-            print('user %s with same phone number has been previously awarded %d Kin. Will not award again' % (other_id, KIN_INITIAL_REWARD))
-            break
+    reward = get_initial_reward()
+    if not config.DEBUG:
+        for other_id in get_associated_user_ids(user_id):
+            if is_onboarded(other_id):
+                set_onboarded(user_id, True, public_address)
+                onboarded = True
+                print('user %s with same phone number has been previously awarded %d Kin. Will not award again' % (other_id, reward))
+                break
 
     if not onboarded:
         try:
-            send_tx = send_kin(public_address, KIN_INITIAL_REWARD)
+            send_tx = send_kin(public_address, reward)
             if send_tx:
                 onboarded = True
                 set_onboarded(user_id, True, public_address)
-                print('sent %d KIN to user %s ' % (KIN_INITIAL_REWARD,user_id))
+                print('sent %d KIN to user %s ' % (reward, user_id))
             else:
-                print('unable to send %d KIN to user %s ' % (KIN_INITIAL_REWARD, user_id))
+                print('unable to send %d KIN to user %s ' % (reward, user_id))
         except Exception as e2:
             print('exception %s trying to send kin to user ' % e2)
 
