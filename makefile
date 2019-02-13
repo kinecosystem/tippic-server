@@ -1,6 +1,6 @@
 install-sdk:
 	#sudo pip3 install kin --upgrade
-	pip3 install git+https://github.com/kinecosystem/kin-core-python.git
+	pip3 install git+https://github.com/kinecosystem/kin-core-python.git@master
 
 install:
 	sudo pip3 install . --upgrade
@@ -23,4 +23,3 @@ test:
     #	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/backup_questions2.py
 all:
 	install test
-
