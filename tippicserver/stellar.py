@@ -11,7 +11,7 @@ TX_MEMO_PREFIX = '1-TPIC'
 
 def get_initial_reward():
     if config.DEBUG:
-        return 500
+        return 7
     else:
         return 15
 
