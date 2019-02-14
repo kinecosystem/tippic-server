@@ -4,12 +4,12 @@ import uuid
 
 import testing.postgresql
 from stellar_base.keypair import Keypair
-from tippicserver.stellar import KIN_INITIAL_REWARD
 
 import tippicserver
 from tippicserver import db
 
 from tippicserver import stellar
+from tippicserver.stellar import get_initial_reward
 
 import logging as log
 log.getLogger().setLevel(log.INFO)
@@ -41,8 +41,8 @@ class Tester(unittest.TestCase):
         """test onboarding scenarios"""
         # onboard 2 different user ids with the same phone number
         # both should succeed but user should get 15 Kin only once
-        paddr = self.onboard_with_phone( str(uuid.uuid4()), '+9720528802120')
-        self.assertEqual(KIN_INITIAL_REWARD, stellar.get_kin_balance(paddr))
+        paddr = self.onboard_with_phone(str(uuid.uuid4()), '+9720528802120')
+        self.assertEqual(get_initial_reward(), stellar.get_kin_balance(paddr))
         paddr = self.onboard_with_phone( str(uuid.uuid4()), '+9720528802120')
         self.assertEqual(0, stellar.get_kin_balance(paddr))
 
