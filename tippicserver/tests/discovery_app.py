@@ -67,8 +67,7 @@ class Tester(unittest.TestCase):
             '/discovery/add_app', data=json.dumps({'app': demo_app}), content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
-        resp = self.app.get('/discovery/get_apps',
-                            content_type='application/json')
+        resp = self.app.get('/discovery/get_apps',content_type='application/json')
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         self.assertEqual(len(data['apps']), 2)
@@ -84,7 +83,7 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
         self.assertEqual(len(data['apps']), 1)
-        self.assertEqual(len(data['apps'][0]['platform']), 'android')
+        self.assertEqual(data['apps'][0]['platform'], 'android')
 
 
 

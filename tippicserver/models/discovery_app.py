@@ -29,6 +29,7 @@ def get_discovery_apps(app_identifier, platform):
         result = filter(
             lambda app: app['platform'] == platform, result)
 
+    return list(result)
 
 
 def app_to_json(app):
@@ -40,6 +41,7 @@ def app_to_json(app):
     json_app['category_name'] = app.category_name
     json_app['identifier'] = app.identifier
     json_app['tags'] = app.tags
+    json_app['platform'] = app.platform
     json_app['earn_title'] = meta_data['earn_title']
     json_app['card_image_url'] = meta_data['card_image_url']
     json_app['app_url'] = meta_data['app_url']
@@ -53,15 +55,22 @@ def app_to_json(app):
 
 def add_app(json_app):
     """ add app to db"""
+    try:
+        new_app = DiscoveryApp()
+        new_app.category_name = json_app['category_name']
+        new_app.identifier = json_app['identifier']
+        new_app.platform = json_app['platform']
+        new_app.tags = json_app['tags']
+        new_app.meta_data = json_app['meta_data']
 
-    new_app = DiscoveryApp()
-    new_app['category_name'] = json_app['category_name']
-    new_app['identifier'] = json_app['identifier']
-    new_app['platform'] = json_app['platform']
-    new_app['tags'] = json_app['tags']
-    new_app['meta_data'] = json_app['meta_data']
+        db.session.add(new_app)
+        db.session.commit()
 
-    db.session.add(new_app)
-    db.session.commit()
+    except Exception as e:
+        print(e)
+        log.error('cant add app to db with id %s' % json_app['identifier'])
+    else:
+        log.info('created app with id: %s' % json_app['identifier'])
+        return True
 
-    return True
+    return False

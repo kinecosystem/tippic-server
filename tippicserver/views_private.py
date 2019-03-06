@@ -348,7 +348,7 @@ def add_picture_endpoint():
 
 
 @app.route('/discovery/add_app', methods=['POST'])
-def add_discovery_app_api():
+def add_discovery_app_endpoint():
     """ add app to db """
     from tippicserver.models.discovery_app import add_app
     if not config.DEBUG:

@@ -2,7 +2,8 @@
 
 DEPLOYMENT_ENV = 'test'
 DEBUG = True
-DB_CONNSTR = "this gets overwritten by the tester code. it acutally uses a temp postgress db on the local disc"
+DB_CONNSTR = "postgresql://localhost:5432/tippic_localhost"
+
 REDIS_ENDPOINT = 'localhost'
 REDIS_PORT = 6379
 
