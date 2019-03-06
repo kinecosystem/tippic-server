@@ -345,3 +345,22 @@ def add_picture_endpoint():
         return jsonify(status='ok')
     else:
         raise InvalidUsage('failed to add picture')
+
+
+@app.route('/discovery/add_app', methods=['POST'])
+def add_discovery_app_api():
+    """ add app to db """
+    from tippicserver.models.discovery_app import add_app
+    if not config.DEBUG:
+        limit_to_localhost()
+
+    payload = request.get_json(silent=True)
+    try:
+        app = payload.get('app', None)
+    except Exception as e:
+        print('exception: %s' % e)
+        raise InvalidUsage('bad-request')
+    if add_app(app):
+        return jsonify(status='ok')
+    else:
+        raise InvalidUsage('failed to add picture')

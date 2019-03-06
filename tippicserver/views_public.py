@@ -919,3 +919,15 @@ def report_transaction_api():
         return jsonify(status='ok')
     else:
         raise InvalidUsage('failed to add picture')
+
+
+
+
+@app.route('/discovery/get_apps', methods=['GET'])
+def get_discovery_apps_api():
+    """ returns a list of avaliable discovery apps for specific platform """
+    from tippicserver.models import discovery_app
+    app_identifier = request.args.get('identifier', type=str)
+    platform = request.args.get('platform', type = str)
+
+    return jsonify(apps=discovery_app.get_discovery_apps(app_identifier, platform))
