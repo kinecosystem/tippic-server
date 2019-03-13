@@ -921,8 +921,6 @@ def report_transaction_api():
         raise InvalidUsage('failed to add picture')
 
 
-
-
 @app.route('/discovery/get_apps', methods=['GET'])
 def get_discovery_apps_api():
     """ returns a list of avaliable discovery apps for specific platform """

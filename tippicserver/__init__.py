@@ -153,5 +153,3 @@ if config.DEBUG:
     from .utils import print_creation_statement
     print_creation_statement()
     pass
-
-

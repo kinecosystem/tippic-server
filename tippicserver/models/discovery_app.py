@@ -1,20 +1,21 @@
-
-import datetime
 import logging as log
+
 from tippicserver import db
 
 
 class DiscoveryApp(db.Model):
     """email templates for various uses"""
-    identifier = db.Column(db.String(40), primary_key=True, nullable=False)
-    category_name = db.Column(db.String(40), primary_key=True, nullable=False)
-    platform = db.Column(db.String(10), primary_key=True, nullable=False)
-    tags = db.Column(db.JSON())
+    sid = db.Column(db.Integer(), db.Sequence(
+        'discovery_app_sid', start=1, increment=1), primary_key=True)
+    identifier = db.Column(db.String(40), primary_key=False, nullable=False)
+    category_name = db.Column(db.String(40), primary_key=False, nullable=False)
+    platform = db.Column(db.String(10), primary_key=False, nullable=False)
     meta_data = db.Column(db.JSON())
-    
-    
+    transfer_data = db.Column(db.JSON())
+
     def __repr__(self):
-        return '<identifier: %s, category_name: %s, platform: %s, tags: %s, meta_data: %s>' % (self.identifier, self.category_name, self.platform, self.tags, self.meta_data)
+        return '<identifier: %s, category_name: %s, platform: %s, tags: %s, meta_data: %s>' % (
+            self.identifier, self.category_name, self.platform, self.tags, self.meta_data)
 
 
 def get_discovery_apps(app_identifier, platform):
@@ -34,34 +35,29 @@ def get_discovery_apps(app_identifier, platform):
 
 def app_to_json(app):
     """convert app to a json format"""
-    import json
     json_app = {}
-    meta_data = app.meta_data
 
     json_app['category_name'] = app.category_name
     json_app['identifier'] = app.identifier
-    json_app['tags'] = app.tags
     json_app['platform'] = app.platform
-    json_app['earn_title'] = meta_data['earn_title']
-    json_app['card_image_url'] = meta_data['card_image_url']
-    json_app['app_url'] = meta_data['app_url']
-    json_app['earn_info'] = meta_data['earn_info']
-    json_app['icon_url'] = meta_data['icon_url']
-    json_app['about_info'] = meta_data['about_info']
-    json_app['swipe_images_url'] = meta_data['swipe_images_url']
+    json_app['meta_data'] = app.meta_data
+    
+    if app.transfer_data:
+        json_app['transfer_data'] = app.transfer_data
 
     return json_app
-    
+
 
 def add_app(json_app):
     """ add app to db"""
     try:
         new_app = DiscoveryApp()
+
         new_app.category_name = json_app['category_name']
         new_app.identifier = json_app['identifier']
         new_app.platform = json_app['platform']
-        new_app.tags = json_app['tags']
         new_app.meta_data = json_app['meta_data']
+        new_app.transfer_data = json_app['transfer_data']
 
         db.session.add(new_app)
         db.session.commit()
