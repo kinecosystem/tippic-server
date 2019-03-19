@@ -329,22 +329,27 @@ def skip_picture_endpoint():
     return jsonify(status='ok')
 
 
-@app.route('/picture', methods=['POST'])
-def add_picture_endpoint():
+@app.route('/picture/add', methods=['POST'])
+def add_pictures_endpoint():
     """used to add pictures to the db"""
     if not config.DEBUG:
-        limit_to_localhost()
-
-    payload = request.get_json(silent=True)
+        limit_to_acl()
+        limit_to_password()
     try:
-        picture = payload.get('picture', None)
+        pictures = payload.get('pictures', None)
+        payload = request.get_json(silent=True)
+
     except Exception as e:
         print('exception: %s' % e)
         raise InvalidUsage('bad-request')
-    if add_picture(picture):
-        return jsonify(status='ok')
-    else:
-        raise InvalidUsage('failed to add picture')
+    
+    for picture in pictures:
+        status = add_picture(picture)
+        if status is not True:
+            raise InvalidUsage(message='error', payload={
+                               'error field': str(status), 'picture': picture})
+
+    return jsonify(status='ok')
 
 
 @app.route('/discovery/add_app', methods=['POST'])

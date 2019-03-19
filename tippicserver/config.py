@@ -2,8 +2,7 @@
 
 DEPLOYMENT_ENV = 'test'
 DEBUG = True
-DB_CONNSTR = "postgresql://localhost:5432/tippic_localhost"
-
+DB_CONNSTR = "postgresql://localhost/tippic_localhost"
 REDIS_ENDPOINT = 'localhost'
 REDIS_PORT = 6379
 
