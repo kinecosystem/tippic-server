@@ -3,7 +3,7 @@ import json
 from tippicserver import db
 from tippicserver.models import SystemConfig, User, UUIDType, get_user_app_data, Transaction
 from tippicserver.utils import InvalidUsage
-from tippicserver.models.user import get_address_by_userid, set_username,get_user
+from tippicserver.models.user import get_address_by_userid, set_username, get_user
 
 
 class ReportedPictures(db.Model):
@@ -49,7 +49,7 @@ class Picture(db.Model):
                'picture_order_index: %s,' \
                'title: %s,' \
                'author: %s, ' \
-               'image_url: %s>' % (self.picture_id, self.picture_order_index,self.title, self.author, self.image_url)
+               'image_url: %s>' % (self.picture_id, self.picture_order_index, self.title, self.author, self.image_url)
 
 
 def picture_to_json(picture):
@@ -149,6 +149,7 @@ def set_picture_active(picture_id, is_active):
 
     return True
 
+
 def get_current_order_index():
     return db.session.query(db.func.max(Picture.picture_order_index)).scalar() or 0
 
@@ -172,8 +173,13 @@ def add_picture(picture_json, set_active=True):
         db.session.add(picture)
         db.session.commit()
 
-        if not get_user(picture_json['user_id']).username:
-            set_username(picture_json['user_id'], picture_json['username'])
+        user = get_user(picture_json['user_id'])
+        if not user.username:
+            if not set_username(picture_json['user_id'], picture_json['username']):
+                print("username %s already taken" % picture_json['username'])
+        else:
+            print("user already has a username: %s. Will not set the username to %s "
+                  % (user.username, picture_json['username']))
     except Exception as e:
         print(e)
         print('cant add picture to db with picture_id %s' % picture.picture_id)
