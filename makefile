@@ -13,16 +13,20 @@ install-cv-module:
 	
 test:
 	export LC_ALL=C
-	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/onboarding.py
-	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/phone_verification.py
+#	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/backup_questions.py
+#	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/backup_questions2.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/balance.py
+#	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/blacklisted_phone_numbers.py
+	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/onboarding.py
+#	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/p2p_tx.py
+	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/phone_verification.py
+	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/phone_verification_blacklisted_phone.py
+	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/picture.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/registration.py
+	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/transaction.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/update_token.py
+	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/user.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/user_app_data.py
 	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/utils_test.py
-	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/phone_verification_blacklisted_phone.py
-	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/blacklisted_phone_numbers.py
-	#	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/backup_questions.py
-    #	python3 -m pytest -v -rs -s -x  --disable-pytest-warnings tippicserver/tests/backup_questions2.py
 all:
 	install test
