@@ -335,9 +335,10 @@ def add_pictures_endpoint():
     if not config.DEBUG:
         limit_to_acl()
         limit_to_password()
+        
     try:
-        pictures = payload.get('pictures', None)
         payload = request.get_json(silent=True)
+        pictures = payload.get('pictures', None)
 
     except Exception as e:
         print('exception: %s' % e)
