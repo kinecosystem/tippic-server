@@ -157,8 +157,9 @@ def get_current_order_index():
 def add_picture(picture_json, set_active=True):
     """adds an picture to the db"""
     import uuid, json
+    from tippicserver.utils import test_url
     print(picture_json)
-
+        
     picture = Picture()
     try:
         picture.picture_id = str(uuid.uuid4())
@@ -169,6 +170,13 @@ def add_picture(picture_json, set_active=True):
             'public_address': get_address_by_userid(picture_json['user_id'])
         }
         picture.picture_order_index = get_current_order_index() + 1
+
+        if get_user(picture_json['user_id']) is None:
+            raise InvalidUsage('no such user_id')
+
+        if 'skip_image_test' not in picture_json and not test_url(picture_json['image_url']):
+            raise InvalidUsage('image url invalid')
+
 
         db.session.add(picture)
         db.session.commit()
