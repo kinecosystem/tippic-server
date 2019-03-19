@@ -53,13 +53,10 @@ class Tester(unittest.TestCase):
 
         picture_1 = {
             "skip_image_test": "true",
-            "author": {
-                "user_id": str(userid),
-                "public_address": "GCNP7H4K7QZOBG3K7CSTHBFB4COHQHOLRM7PAZVFS5VF4OPKNN4YPCMS"
-            },
+            "user_id": str(userid),
             "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
             "title": "Random Dogs Band",
-            "picture_order_index": 1
+            "username": "some user some name"
         }
 
         # - call /user/picture  - 400
@@ -107,9 +104,9 @@ class Tester(unittest.TestCase):
         self.assertEqual(data['summery'], [])
 
         # add a picture
-        resp = self.app.post('/picture',
+        resp = self.app.post('/picture/add',
                              data=json.dumps({
-                                 'picture': picture_1}),
+                                 'pictures': [picture_1]}),
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
 
@@ -204,19 +201,17 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
         picture_2 = {
-            "author": {
-                "user_id": str(userid2),
-                "public_address": "GAVIE7DPX3M2OOW3XBL2R5V5NHCVUJMHV6WSJVMNYK6YN4IB2GWRKYRQ"
-            },
+            "skip_image_test": "true",
+            "user_id": str(userid2),
             "image_url": "https://instagram.fsdv3-1.fna.fbcdn.net/vp/7af826e069bdbdc63dd443f3362e1d7a/5CACB7A9/t51.2885-15/e35/44676676_164229534532236_4062427518663301553_n.jpg",
             "title": "Random Cats Band",
-            "picture_order_index": 2
+            "username": "some user some name"
         }
 
         # - add a picture
-        resp = self.app.post('/picture',
+        resp = self.app.post('/picture/add',
                              data=json.dumps({
-                                 'picture': picture_2}),
+                                 'pictures': [picture_2]}),
                              headers={},
                              content_type='application/json')
         self.assertEqual(resp.status_code, 200)
