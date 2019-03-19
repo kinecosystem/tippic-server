@@ -3,6 +3,7 @@ import json
 from tippicserver import db
 from tippicserver.models import SystemConfig, User, UUIDType, get_user_app_data, Transaction
 from tippicserver.utils import InvalidUsage
+from tippicserver.models.user import get_address_by_userid, set_username, get_user
 
 
 class ReportedPictures(db.Model):
@@ -40,7 +41,6 @@ class Picture(db.Model):
     title = db.Column(db.String(80), nullable=False, primary_key=False)
     image_url = db.Column(db.String(200), nullable=False, primary_key=False)
     author = db.Column(db.JSON)
-    min_client_version_ios = db.Column(db.String(10), nullable=False, primary_key=False)
     update_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now())
     is_active = db.Column(db.Boolean, unique=False, default=True)
 
@@ -49,7 +49,7 @@ class Picture(db.Model):
                'picture_order_index: %s,' \
                'title: %s,' \
                'author: %s, ' \
-               'image_url: %s>' % (self.picture_id, self.picture_order_index,self.title, self.author, self.image_url)
+               'image_url: %s>' % (self.picture_id, self.picture_order_index, self.title, self.author, self.image_url)
 
 
 def picture_to_json(picture):
@@ -150,26 +150,48 @@ def set_picture_active(picture_id, is_active):
     return True
 
 
+def get_current_order_index():
+    return db.session.query(db.func.max(Picture.picture_order_index)).scalar() or 0
+
+
 def add_picture(picture_json, set_active=True):
     """adds an picture to the db"""
     import uuid, json
+    from tippicserver.utils import test_url
     print(picture_json)
-
+        
     picture = Picture()
     try:
         picture.picture_id = str(uuid.uuid4())
         picture.title = picture_json['title']
         picture.image_url = picture_json['image_url']
-        picture.author = picture_json['author']
-        picture.picture_order_index = picture_json['picture_order_index']
-        picture.min_client_version_ios = picture_json.get('min_client_version_ios', "1.0")
+        picture.author = {
+            'user_id': picture_json['user_id'],
+            'public_address': get_address_by_userid(picture_json['user_id'])
+        }
+        picture.picture_order_index = get_current_order_index() + 1
+
+        if get_user(picture_json['user_id']) is None:
+            raise InvalidUsage('no such user_id')
+
+        if 'skip_image_test' not in picture_json and not test_url(picture_json['image_url']):
+            raise InvalidUsage('image url invalid')
+
 
         db.session.add(picture)
         db.session.commit()
+
+        user = get_user(picture_json['user_id'])
+        if not user.username:
+            if not set_username(picture_json['user_id'], picture_json['username']):
+                print("username %s already taken" % picture_json['username'])
+        else:
+            print("user already has a username: %s. Will not set the username to %s "
+                  % (user.username, picture_json['username']))
     except Exception as e:
-        print(e.__traceback__)
+        print(e)
         print('cant add picture to db with picture_id %s' % picture.picture_id)
-        return False
+        return e
     else:
         if set_active:
             set_picture_active(picture.picture_id, True)
