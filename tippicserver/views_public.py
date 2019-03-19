@@ -302,7 +302,7 @@ def onboard_user():
         raise InvalidUsage('user isnt phone verified')
 
     onboarded = is_onboarded(user_id)
-    if onboarded is True and not config.DEBUG:
+    if onboarded is True:
         raise InvalidUsage('user already has an account and has been awarded')
     elif onboarded is None:
         raise InvalidUsage('no such user exists')
@@ -335,13 +335,13 @@ def onboard_user():
 def award_user(user_id, public_address):
     onboarded = False
     reward = get_initial_reward()
-    if not config.DEBUG:
-        for other_id in get_associated_user_ids(user_id):
-            if is_onboarded(other_id):
-                set_onboarded(user_id, True, public_address)
-                onboarded = True
-                print('user %s with same phone number has been previously awarded %d Kin. Will not award again' % (other_id, reward))
-                break
+    
+    for other_id in get_associated_user_ids(user_id):
+        if is_onboarded(other_id):
+            set_onboarded(user_id, True, public_address)
+            onboarded = True
+            print('user %s with same phone number has been previously awarded %d Kin. Will not award again' % (other_id, reward))
+            break
 
     if not onboarded:
         try:

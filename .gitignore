@@ -110,3 +110,5 @@ Pipfile
 Pipfile\.lock
 
 dump\.rdb
+
+secret
