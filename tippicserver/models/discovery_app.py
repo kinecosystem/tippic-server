@@ -57,7 +57,11 @@ def add_app(json_app):
         new_app.identifier = json_app['identifier']
         new_app.platform = json_app['platform']
         new_app.meta_data = json_app['meta_data']
-        new_app.transfer_data = json_app['transfer_data']
+
+        try:
+            new_app.transfer_data = json_app['transfer_data']
+        except Exception as e:
+            log.info('transfer_data is empty')
 
         db.session.add(new_app)
         db.session.commit()

@@ -32,37 +32,34 @@ class Tester(unittest.TestCase):
     def test_discovery_apps_api(self):
         """ test discover app endpoints """
         demo_app = {
-            "identifier": "com.perfect365",
-            "category_name": "Beauty",
+            "identifier": "kinnyco.kinnyapp",
+            "category_name": "Social",
             "platform": "android",
             "meta_data": {
-                "app_name": "Kinit",
-                "app_url": "https://play.google.com/store/apps/details?id=org.kinecosystem.kinit&hl=en",
-                "icon_url": "https://cdn.kinitapp.com/discovery/tippic/logo/Logo_tippic.png",
-                "about_app": "Donec pharetra convallis nisi, ut imperdiet justo mollis eget. Nulla non ex vitae velit molestie tincidunt.",
-                "experience_data": {
-                    "title": "Unlock you life!",
-                    "about": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ornare nunc mauris, nec lobortis dui venenatis sed. In hac habitasse platea dictumst. Sed in convallis risus. Vestibulum pharetra pretium blandit.",
-                    "howto": "Etiam posuere orci convallis varius egestas. Fusce id metus sodales, semper libero vitae, ornare eros."
-                },
+                "about_app": "Kinny enables users to earn Kin in-app and send and receive Kin through social media.",
+                "app_name": "Kinny",
+                "app_url": "https://play.google.com/store/apps/details?id=kinnyco.kinnyapp",
                 "card_data": {
-                    "title": "Play Trivia & arn Kin",
-                    "text_color": "#FFFFF",
-                    "font_name": "typeCaveat",
-                    "font_size": "12.5f",
-                    "font_line_spacing": "0f",
-                    "font_letter_spacing": "0f"
+                    "font_letter_spacing": "0f",
+                    "font_line_spacing": "3f",
+                    "font_name": "AmericanTypewriter",
+                    "font_size": "21f",
+                    "background_color": "#2675fe",
+                    "title": "Tip friends on social media"
                 },
+                "experience_data": {
+                    "about": "Sync your Reddit, Twitter and Discord accounts and start tipping your friends with Kin.",
+                    "howto": "Create your kinny tip wallet and use the @kinnytips or u/kinnytips tag in a comment to send your friends Kin.",
+                    "title": "Comment to tip your friends"
+                },
+                "icon_url": "https://cdn.kinitapp.com/discovery/reveald/logo/android/xxhdpi/Logo_reveald.png",
                 "images": [
-                    "https://cdn.kinitapp.com/discovery/tippic/Tippic1.jpg",
-                    "https://cdn.kinitapp.com/discovery/tippic/Tippic2.jpg",
-                    "https://cdn.kinitapp.com/discovery/tippic/Tippic3.jpg"
+                    "https://cdn.kinitapp.com/discovery/reveald/android/xxhdpi/app_image_1.jpg",
+                    "https://cdn.kinitapp.com/discovery/reveald/android/xxhdpi/app_image_2.jpg",
                 ]
-            },
-            "transfer_data": {
-                "launch_activity": "com.kin.ecosystem.transfer.view.AccountInfoActivity"
             }
         }
+
 
         # add android app
         resp = self.app.post(
@@ -81,7 +78,7 @@ class Tester(unittest.TestCase):
         data = json.loads(resp.data)
         self.assertEqual(len(data['apps']), 2)
 
-        resp = self.app.get('/discovery/get_apps?identifier=com.perfect365',
+        resp = self.app.get('/discovery/get_apps?identifier=' + demo_app['identifier'],
                             content_type='application/json')
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.data)
