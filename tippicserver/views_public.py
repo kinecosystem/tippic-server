@@ -925,13 +925,13 @@ def report_transaction_api():
 def get_discovery_apps_api():
     """ returns a list of avaliable discovery apps for specific platform """
 
-    from flask import Response
-    # from tippicserver.models import discovery_app
-    # app_identifier = request.args.get('identifier', type=str)
-    # platform = request.args.get('platform', type = str)
+    from tippicserver.models import discovery_app
+    app_identifier = request.args.get('identifier', type=str)
+    platform = request.args.get('platform', type = str)
 
-    # return jsonify(apps=discovery_app.get_discovery_apps(app_identifier, platform))
+    return jsonify(apps=discovery_app.get_discovery_apps(app_identifier, platform))
 
-    from requests import get
+    # from flask import Response
+    # from requests import get
 
-    return Response(get("https://s3.amazonaws.com/kinapp-static/discovery_apps_android.json").content, content_type='application/json; charset=utf-8')
+    # return Response(get("https://s3.amazonaws.com/kinapp-static/discovery_apps_android.json").content, content_type='application/json; charset=utf-8')
