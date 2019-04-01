@@ -8,7 +8,7 @@
     - igor_mukhin.bash_aliases
 
   vars:
-   branch_name: master
+   branch_name: kin3
    deployment_env: stage
    environment_config:
      ENV: stage
@@ -18,15 +18,15 @@
      tags: "service:tippic-server-stage"
    datadog_api_key: "{{ lookup('aws_ssm', '/config/tippic/stage/datadog/apikey' )}}"
    debug: True
-   nginx_domain: stage.tippicapp.com
+   nginx_domain: stage3.tippicapp.com
    db_connstr: "postgresql://{{lookup('aws_ssm', '/config/tippic/stage/sql/userpassword')}}@tippic-stage.cudbl0spntq9.us-east-1.rds.amazonaws.com/tippicdb"
    redis_endpoint: 'kin-app-server-stage.qugi0x.0001.use1.cache.amazonaws.com'
    redis_port: 6379
    stellar_timeout_sec: 30
    stellar_initial_account_balance: 2
-   stellar_network: 'Kin Playground Network ; June 2018'
+   stellar_network: 'Kin Testnet ; December 2018'
    stellar_kin_issuer_address: GBC3SG6NGTSZ2OMH3FFGB7UVRQWILW367U4GSOOF4TFSZONV42UJXUH7
-   stellar_horizon_url: https://horizon-playground.kininfrastructure.com
+   stellar_horizon_url: https://horizon-testnet.kininfrastructure.com
    kms_key_aws_region: 'us-east-1'
    phone_verification_enabled: True
    phone_verification_required: False
@@ -36,11 +36,11 @@
    auth_token_send_interval_days: 0
    auth_token_enforced: False
    auth_token_enabled: False
-   payment_service_url: 'http://stage.payments.kinitapp.com:4999'
-   api_server_url: 'https://stage.tippicapp.com'
+   payment_service_url: 'http://kin3stage.payments.kinitapp.com:4998'
+   api_server_url: 'https://stage3.tippicapp.com'
    use_payment_service_phone_number_prefix: '+'
    use_payment_service_percent_of_users: 100
-   block_onboarding_android_version: 99.99.99
+   block_onboarding_android_version: 0.0
    block_onboarding_ios_version: 0.0
    blocked_phone_prefixes: "['+55']"
    allowed_phone_prefixes: "['+1','+44','+972']"

@@ -21,7 +21,7 @@ from tippicserver.models import create_user, update_user_token, update_user_app_
     get_user_os_type, count_registrations_for_phone_number, \
     update_ip_address, is_userid_blacklisted, get_picture_for_user, get_associated_user_ids, report_transaction, \
     user_exists, set_username, block_user, unblock_user, get_pictures_summery, get_user_blocked_users, report_picture
-from tippicserver.stellar import create_account, send_kin, active_account_exists, get_initial_reward
+from tippicserver.stellar import create_account, send_kin, active_account_exists, get_initial_reward, add_signature
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, MAX_TXS_PER_USER, \
     extract_phone_number_from_firebase_id_token, \
     get_global_config, read_payment_data_from_cache
@@ -227,6 +227,40 @@ def update_token_api():
     return jsonify(status='ok')
 
 
+@app.route('/user/add-signature', methods=['POST'])
+def add_signature_api():
+    """add backend signature to transaction"""
+    payload = request.get_json(silent=True)
+    try:
+        user_id, auth_token = extract_headers(request)
+        print('calling /user/add-signature for user_id %s ' % user_id)
+        id = payload.get('id', None)
+        sender_address = payload.get('sender_address', None)
+        recipient_address = payload.get('recipient_address', None)
+        amount = payload.get('amount', None)
+        transaction = payload.get('transaction', None)
+        validation_token = payload.get('validation-token', None)
+        print('### adding signature with validation token =  %s' % validation_token)
+        if None in (user_id, id, sender_address, recipient_address, amount, transaction, validation_token):
+            log.error('failed input checks on /user/submit_transaction')
+            raise InvalidUsage('bad-request')
+    except Exception as e:
+        print('exception in /user/submit_transaction e=%s' % e)
+        raise InvalidUsage('bad-request')
+
+    if not utils.is_valid_client(user_id, validation_token):
+        increment_metric('add-signature-invalid-token')
+        raise jsonify(status='denied', reason='invalid token')
+
+    auth_status = authorize(user_id)
+    if auth_status != 'authorized':
+        return jsonify(status='denied', reason=auth_status)
+
+    tx = add_signature(id, sender_address, recipient_address, int(amount), transaction)
+
+    return jsonify(status='ok', tx=tx)
+
+
 @app.route('/user/transactions', methods=['GET'])
 def get_transactions_api():
     """return a list of the last X txs for this user
@@ -243,10 +277,10 @@ def get_transactions_api():
         user_id, auth_token = extract_headers(request)
         server_txs = [{'type': 'server', 'tx_hash': tx.tx_hash, 'amount': tx.amount, 'client_received': not tx.incoming_tx, 'tx_info': tx.tx_info, 'date': arrow.get(tx.update_at).timestamp} for tx in list_user_transactions(user_id, MAX_TXS_PER_USER)]
 
-        # get the offer, task details
-        for tx in server_txs:
-            details = get_offer_details(tx['tx_info']['offer_id']) if not tx['client_received'] else get_task_details(tx['tx_info']['task_id'])
-            detailed_txs.append({**tx, **details})
+        # # get the offer, task details
+        # for tx in server_txs:
+        #     details = get_offer_details(tx['tx_info']['offer_id']) if not tx['client_received'] else get_task_details(tx['tx_info']['task_id'])
+        #     detailed_txs.append({**tx, **details})
 
         # get p2p details
         import emoji
@@ -276,6 +310,22 @@ def get_transactions_api():
 
     return jsonify(status='ok', txs=detailed_txs)
 
+
+def authorize(user_id):
+    if config.AUTH_TOKEN_ENFORCED and not is_user_authenticated(user_id):
+        print('user %s is not authenticated. rejecting results submission request' % user_id)
+        increment_metric('rejected-on-auth')
+        return 'auth-failed'
+
+    if config.PHONE_VERIFICATION_REQUIRED and not is_user_phone_verified(user_id):
+        print('blocking user (%s) results - didnt pass phone_verification' % user_id)
+        return 'user_phone_not_verified'
+
+    if is_userid_blacklisted(user_id):
+        print('blocked user_id %s from booking goods - user_id blacklisted' % user_id)
+        return 'denied'
+
+    return 'authorized'
 
 
 @app.route('/user/onboard', methods=['POST'])
@@ -434,69 +484,6 @@ def register_api():
 
             # return global config - the user doesn't have user-specific config (yet)
             return jsonify(status='ok', config=global_config)
-
-
-# def reward_and_push(public_address, task_id, send_push, user_id, memo, delta):
-#     """create a thread to perform this function in the background"""
-#     Thread(target=reward_address_for_task_internal, args=(public_address, task_id, send_push, user_id, memo, delta)).start()
-#
-#
-# def reward_address_for_task_internal(public_address, task_id, send_push, user_id, memo, delta=0):
-#     """transfer the correct amount of kins for the task to the given address
-#
-#        this function runs in the background and sends a push message to the client to
-#        indicate that the money was indeed transferred.
-#
-#        typically, tips are negative delta and quiz-results are positive delta
-#     """
-#     # get reward amount from db
-#     amount = get_reward_for_task(task_id)
-#     if not amount:
-#         print('could not figure reward amount for task_id: %s' % task_id)
-#         raise InternalError('cant find reward for task_id %s' % task_id)
-#
-#     # take into account the delta: add or reduce kins from the amount
-#     amount = amount + delta
-#
-#     try:
-#         # send the moneys
-#         print('calling send_kin: %s, %s' % (public_address, amount))
-#         tx_hash = send_kin(public_address, amount, memo)
-#         create_tx(tx_hash, user_id, public_address, False, amount, {'task_id': task_id, 'memo': memo})
-#     except Exception as e:
-#         print('caught exception sending %s kins to %s - exception: %s:' % (amount, public_address, e))
-#         increment_metric('outgoing_tx_failed')
-#         raise InternalError('failed sending %s kins to %s' % (amount, public_address))
-#     finally:  # TODO dont do this if we fail with the tx
-#         if tx_hash and send_push:
-#             send_push_tx_completed(user_id, tx_hash, amount, task_id, memo)
-#         try:
-#             redis_lock.Lock(app.redis, get_payment_lock_name(user_id, task_id)).release()
-#         except Exception as e:
-#             log.error('failed to release payment lock for user_id %s and task_id %s' % (user_id, task_id))
-#
-#
-#
-# def reward_address_for_task_internal_payment_service(public_address, task_id, send_push, user_id, memo, delta=0):
-#     """transfer the correct amount of kins for the task to the given address using the payment service.
-#        the payment service is async and calls a callback when its done. the tx is written into the db
-#        in the callback function.
-#
-#        typically, tips are negative delta and quiz-results are positive delta
-#     """
-#     memo = memo[6:]  # trim down the memo because the payment service adds the '1-kit-' bit.
-#     # get reward amount from db
-#     amount = get_reward_for_task(task_id)
-#     if not amount:
-#         print('could not figure reward amount for task_id: %s' % task_id)
-#         raise InternalError('cant find reward for task_id %s' % task_id)
-#
-#     # take into account the delta: add or reduce kins from the amount
-#     amount = amount + delta
-#     write_payment_data_to_cache(memo, user_id, task_id, arrow.utcnow().timestamp,send_push)  # store this info in cache for when the callback is called
-#     print('calling send_kin with the payment service: %s, %s' % (public_address, amount))
-#     # sends a request to the payment service. result comes back via a callback
-#     send_kin_with_payment_service(public_address, amount, memo)
 
 
 @app.route('/user/transaction/p2p', methods=['POST'])
@@ -919,3 +906,20 @@ def report_transaction_api():
         return jsonify(status='ok')
     else:
         raise InvalidUsage('failed to add picture')
+
+
+@app.route('/validation/get-nonce', methods=['GET'])
+def get_validation_nonce():
+    """ return nonce to the client """
+    import kinit_client_validation_module as validation_module
+    try:
+        user_id, auth_token = extract_headers(request)
+        if user_id is None:
+            raise InvalidUsage('bad-request')
+        if not user_exists(user_id):
+            print('get_nonce: user_id %s does not exist. aborting' % user_id)
+            raise InvalidUsage('bad-request')
+    except Exception as e:
+        print(e)
+        raise InvalidUsage('bad-request')
+    return jsonify(nonce=validation_module.get_validation_nonce(user_id))

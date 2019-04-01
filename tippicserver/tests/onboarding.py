@@ -3,7 +3,6 @@ import unittest
 import uuid
 
 import testing.postgresql
-from stellar_base.keypair import Keypair
 
 import tippicserver
 from tippicserver import db
@@ -71,11 +70,12 @@ class Tester(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
         print('onboarding user --------------')
-        kp = Keypair.random()
-        paddr = kp.address().decode()
+        from kin import Keypair
+        kp = Keypair()
+        address = kp.address_from_seed(kp.generate_seed())
         resp = self.app.post('/user/onboard',
             data=json.dumps({
-                            'public_address': paddr}),
+                            'public_address': address}),
             headers={USER_ID_HEADER: str(userid)},
             content_type='application/json')
 
@@ -86,14 +86,21 @@ class Tester(unittest.TestCase):
         print('onboarding same user second time should fail --------------')
         resp = self.app.post('/user/onboard',
             data=json.dumps({
-                            'public_address': kp.address().decode()}),
+                            'public_address': address}),
             headers={USER_ID_HEADER: str(userid)},
             content_type='application/json')
         print(json.loads(resp.data))
         self.assertEqual(resp.status_code, 400)
 
-        return paddr
-
+        # try sending kin to that public address
+        resp = self.app.post('/send-kin',
+            data=json.dumps({
+                            'public_address': address,
+                            'amount': 1}),
+            headers={USER_ID_HEADER: str(userid)},
+            content_type='application/json')
+        print(json.loads(resp.data))
+        self.assertEqual(resp.status_code, 200)
 
 if __name__ == '__main__':
     unittest.main()

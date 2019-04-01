@@ -1,6 +1,6 @@
 install-sdk:
 	#sudo pip3 install kin --upgrade
-	pip3 install git+https://github.com/kinecosystem/kin-core-python.git@master
+	pip3 install kin-sdk
 
 install:
 	sudo pip3 install . --upgrade

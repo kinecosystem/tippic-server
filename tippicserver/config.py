@@ -7,11 +7,11 @@ REDIS_ENDPOINT = 'localhost'
 REDIS_PORT = 6379
 
 STELLAR_TIMEOUT_SEC = 10  # waitloop for tx data to be available
-STELLAR_INITIAL_ACCOUNT_BALANCE = 2
+STELLAR_INITIAL_ACCOUNT_BALANCE = 0
 PUSH_TTL_SECS = 60 * 60 * 24
 
-STELLAR_HORIZON_URL = 'https://horizon-playground.kininfrastructure.com'
-STELLAR_NETWORK = 'Kin Playground Network ; June 2018'
+STELLAR_HORIZON_URL = 'https://horizon-testnet.kininfrastructure.com'
+STELLAR_NETWORK ='Kin Testnet ; December 2018'
 STELLAR_KIN_ISSUER_ADDRESS = 'GBC3SG6NGTSZ2OMH3FFGB7UVRQWILW367U4GSOOF4TFSZONV42UJXUH7'
 
 KMS_KEY_AWS_REGION = 'us-east-1'
@@ -43,3 +43,6 @@ BLOCKED_COUNTRY_CODES = "[]"
 
 MAX_NUM_REGISTRATIONS_PER_NUMBER = 2  # keep this value at 2 for the test
 APK_PACKAGE_NAME = 'org.kinecosystem.tippic'
+
+PAYMENT_SERVICE_URL = 'https://kin3stage.payments.kinitapp.com:4998'
+API_SERVER_URL = 'https://stage2.tippicapp.com'
