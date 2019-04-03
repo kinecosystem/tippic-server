@@ -248,9 +248,9 @@ def add_signature_api():
         print('exception in /user/submit_transaction e=%s' % e)
         raise InvalidUsage('bad-request')
 
-    if not utils.is_valid_client(user_id, validation_token):
-        increment_metric('add-signature-invalid-token')
-        raise jsonify(status='denied', reason='invalid token')
+    # if not utils.is_valid_client(user_id, validation_token):
+    #     increment_metric('add-signature-invalid-token')
+    #     raise jsonify(status='denied', reason='invalid token')
 
     auth_status = authorize(user_id)
     if auth_status != 'authorized':
@@ -911,7 +911,7 @@ def report_transaction_api():
 @app.route('/validation/get-nonce', methods=['GET'])
 def get_validation_nonce():
     """ return nonce to the client """
-    import kinit_client_validation_module as validation_module
+    # import kinit_client_validation_module as validation_module
     try:
         user_id, auth_token = extract_headers(request)
         if user_id is None:
@@ -922,4 +922,6 @@ def get_validation_nonce():
     except Exception as e:
         print(e)
         raise InvalidUsage('bad-request')
-    return jsonify(nonce=validation_module.get_validation_nonce(user_id))
+    from uuid import uuid4
+    return jsonify(nonce=str(uuid4()))
+    # return jsonify(nonce=validation_module.get_validation_nonce(user_id))
