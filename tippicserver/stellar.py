@@ -70,7 +70,7 @@ def send_kin_with_payment_service(public_address, amount, memo=None):
     payment_payload = {
         'id': memo,
         'amount': amount,
-        'app_id': 'kit',
+        'app_id': 'TIPC',
         'recipient_address': public_address,
         'callback': "%s/payments/callback" % config.API_SERVER_URL
     }

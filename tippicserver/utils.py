@@ -374,13 +374,16 @@ def is_valid_client(user_id, validation_token):
     log.info('user_id: %s  - os_type: %s - client apk_version: %s - VALIDATION_MIN_APK_VERSION: %s' % (
     user_id, os_type, apk_version, validation_module.VALIDATION_MIN_APK_VERSION))
 
-    if os_type == OS_ANDROID and apk_version >= validation_module.VALIDATION_MIN_APK_VERSION:
+    if os_type == OS_ANDROID :
         log.info('user_id: %s  - REQUIRES VALIDATION' % user_id)
         if validation_token is None:
             log.info("user_id: %s  - validation_token is None!" % user_id)
             return False
 
-        if not validation_module.validate_token(user_id, validation_token):
+        if not validation_module.validate_token(app.redis, user_id, validation_token,
+                                                config.APK_PACKAGE_NAME, config.DEPLOYMENT_ENV):
             log.info("user_id: %s  - validation_token is invalid!" % user_id)
             return False
+        else:
+            log.info("user_id: %s - validation_token is valid" % user_id)
     return True

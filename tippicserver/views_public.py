@@ -240,7 +240,8 @@ def add_signature_api():
         amount = payload.get('amount', None)
         transaction = payload.get('transaction', None)
         validation_token = payload.get('validation-token', None)
-        print('### adding signature with validation token =  %s' % validation_token)
+        print('### adding signature with validation token =  %s and transaction:%s'
+              % (validation_token, transaction))
         if None in (user_id, id, sender_address, recipient_address, amount, transaction, validation_token):
             log.error('failed input checks on /user/submit_transaction')
             raise InvalidUsage('bad-request')
@@ -248,9 +249,9 @@ def add_signature_api():
         print('exception in /user/submit_transaction e=%s' % e)
         raise InvalidUsage('bad-request')
 
-    # if not utils.is_valid_client(user_id, validation_token):
-    #     increment_metric('add-signature-invalid-token')
-    #     raise jsonify(status='denied', reason='invalid token')
+    if not utils.is_valid_client(user_id, validation_token):
+        increment_metric('add-signature-invalid-token')
+        raise jsonify(status='denied', reason='invalid token')
 
     auth_status = authorize(user_id)
     if auth_status != 'authorized':
@@ -678,9 +679,6 @@ def payment_service_callback_endpoint():
                 except Exception as e:
                     log.error('failed to calculate payment request duration. e=%s' % e)
 
-                # slap the '1-kit' on the memo
-                memo = '1-kit-%s' % memo
-
                 create_tx(tx_hash, user_id, public_address, False, amount, {'task_id': task_id, 'memo': memo})
                 increment_metric('payment-callback-success')
                 #
@@ -911,7 +909,7 @@ def report_transaction_api():
 @app.route('/validation/get-nonce', methods=['GET'])
 def get_validation_nonce():
     """ return nonce to the client """
-    # import kinit_client_validation_module as validation_module
+    import kinit_client_validation_module as validation_module
     try:
         user_id, auth_token = extract_headers(request)
         if user_id is None:
@@ -923,5 +921,4 @@ def get_validation_nonce():
         print(e)
         raise InvalidUsage('bad-request')
     from uuid import uuid4
-    return jsonify(nonce=str(uuid4()))
-    # return jsonify(nonce=validation_module.get_validation_nonce(user_id))
+    return jsonify(nonce=validation_module.get_validation_nonce(app.redis, user_id))

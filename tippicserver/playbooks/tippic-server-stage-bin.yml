@@ -16,7 +16,7 @@
    redis_endpoint: 'kin-app-server-stage.qugi0x.0001.use1.cache.amazonaws.com'
    redis_port: 6379
    stellar_timeout_sec: 30
-   stellar_initial_account_balance: 2
+   stellar_initial_account_balance: 0
    stellar_network: 'Kin Testnet ; December 2018'
    stellar_kin_issuer_address: GBC3SG6NGTSZ2OMH3FFGB7UVRQWILW367U4GSOOF4TFSZONV42UJXUH7
    stellar_horizon_url: https://horizon-testnet.kininfrastructure.com
