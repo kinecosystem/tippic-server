@@ -987,18 +987,3 @@ def count_registrations_for_phone_number(phone_number):
 #         sleep(0.5)  # lets not choke the server. this can really hurt us if done too fast.
 #         send_push_register(user.user_id)
 #         counter = counter + 1
-
-
-def migrate_next_task_memo(user_id):
-    """return the memo for this user and replace it with another"""
-    try:
-        memo = None
-        user_app_data = UserAppData.query.filter_by(user_id=user_id).first()
-        user_app_data.next_task_memo_dict = {}
-        db.session.add(user_app_data)
-        db.session.commit()
-    except Exception as e:
-        print(e)
-        raise InvalidUsage('cant reset next memo for %s' % user_id)
-
-    return memo

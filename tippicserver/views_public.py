@@ -947,6 +947,4 @@ def migrate_api():
     if public_address != user.public_address:
         raise InvalidUsage('public address missmach')
 
-    migrate_next_task_memo(user_id)
-
     return Response(post(config.MIGRATION_SERVICE_URL + '/migrate?address=%s' % public_address).content, content_type='application/json; charset=utf-8')
