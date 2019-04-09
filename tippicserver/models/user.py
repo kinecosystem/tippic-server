@@ -987,4 +987,3 @@ def count_registrations_for_phone_number(phone_number):
 #         sleep(0.5)  # lets not choke the server. this can really hurt us if done too fast.
 #         send_push_register(user.user_id)
 #         counter = counter + 1
-

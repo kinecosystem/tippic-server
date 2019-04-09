@@ -922,3 +922,29 @@ def get_validation_nonce():
         raise InvalidUsage('bad-request')
     from uuid import uuid4
     return jsonify(nonce=validation_module.get_validation_nonce(app.redis, user_id))
+
+
+@app.route('/user/migrate', methods=['POST'])
+def migrate_api():
+    import flask
+    from flask import Response
+    from tippicserver.models.user import get_user, migrate_next_task_memo
+    from requests import post
+
+    args = request.args
+    user_id = args.get('user_id')
+    public_address = args.get('public_address', None)
+
+    log.info('Received migration request from user id: %s' % user_id)
+
+    user = get_user(user_id)
+    if user is None:
+        raise InvalidUsage('user %s was not found' % user_id)
+
+    if public_address is None:
+        raise InvalidUsage("can't migrate None public address")
+
+    if public_address != user.public_address:
+        raise InvalidUsage('public address missmach')
+
+    return Response(post(config.MIGRATION_SERVICE_URL + '/migrate?address=%s' % public_address).content, content_type='application/json; charset=utf-8')
