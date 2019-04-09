@@ -6,10 +6,10 @@
     - weareinteractive.environment
     - Datadog.datadog
     - tippic-server
-    #- ansible-roles.bash_aliases
+    - igor_mukhin.bash_aliases
 
   vars:
-   branch_name: master
+   branch_name: kin3
    deployment_env: prod
    environment_config:
      ENV: prod
@@ -19,15 +19,15 @@
      log_level: INFO
      tags: "service:tippic-server-prod"
    debug: False
-   nginx_domain: api.tippicapp.com
+   nginx_domain: api3.tippicapp.com
    db_connstr: "postgresql://{{lookup('aws_ssm', '/config/tippic/prod/sql/userpassword')}}@tippic-prod.cudbl0spntq9.us-east-1.rds.amazonaws.com/tippicdb"
-   redis_endpoint: 'kinit-app-prod-001.qugi0x.0001.use1.cache.amazonaws.com'
+   redis_endpoint: 'kinit-app-prod.qugi0x.ng.0001.use1.cache.amazonaws.com'
    redis_port: 6379
    stellar_timeout_sec: 30
    stellar_initial_account_balance: 0
-   stellar_network: 'Public Global Kin Ecosystem Network ; June 2018'
+   stellar_network: 'Kin Mainnet ; December 2018'
    stellar_kin_issuer_address: GDF42M3IPERQCBLWFEZKQRK77JQ65SCKTU3CW36HZVCX7XX5A5QXZIVK
-   stellar_horizon_url: https://horizon-ecosystem.kininfrastructure.com
+   stellar_horizon_url: https://horizon.kinfederation.com
    max_simultaneous_orders_per_user: 2
    kms_key_aws_region: 'us-east-1'
    phone_verification_enabled: True
@@ -41,14 +41,14 @@
    auth_token_enabled: False
    blackhawk_purchases_enabled: True
    blackhawk_critical_balance_threshold: 30 # no cards will be ordered when we reach this threshold
-   payment_service_url: 'http://prod.payments.kinitapp.com:4999'
-   api_server_url: 'https://api.tippicapp.com'
+   payment_service_url: 'http://prod3.payments.kinitapp.com:4998'
+   api_server_url: 'https://api3.tippicapp.com'
    use_payment_service_phone_number_prefix: '+'
    use_payment_service_percent_of_users: 100
    block_onboarding_android_version: 0.0
    block_onboarding_ios_version: 0.0
    blocked_phone_prefixes: "['+55']" # handle with care. for example: "['+55','+972']" . must be a valid python list as a string. getting it wrong will break the server at startup.
-   allowed_phone_prefixes: "['+1','+44','+972']"
+   allowed_phone_prefixes: "['+1','+44','+972','+61']"
    blocked_country_codes: "['BR']"
    max_num_registrations_per_number: 10
 
