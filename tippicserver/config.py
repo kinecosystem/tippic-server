@@ -46,3 +46,4 @@ APK_PACKAGE_NAME = 'org.kinecosystem.tippic'
 
 PAYMENT_SERVICE_URL = 'https://kin3stage.payments.kinitapp.com:4998'
 API_SERVER_URL = 'https://stage2.tippicapp.com'
+MIGRATION_SERVICE_URL = "http://localhost:8000" # tunnel
