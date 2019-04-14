@@ -913,11 +913,13 @@ def get_validation_nonce():
     try:
         user_id, auth_token = extract_headers(request)
         if user_id is None:
+            print('get_nonce: user_id is None')
             raise InvalidUsage('bad-request')
         if not user_exists(user_id):
             print('get_nonce: user_id %s does not exist. aborting' % user_id)
             raise InvalidUsage('bad-request')
     except Exception as e:
+        print('get_nonce: exception %s occurred' % e)
         print(e)
         raise InvalidUsage('bad-request')
     from uuid import uuid4
