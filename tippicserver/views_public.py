@@ -930,7 +930,7 @@ def get_validation_nonce():
 def migrate_api():
     import flask
     from flask import Response
-    from tippicserver.models.user import get_user, migrate_next_task_memo
+    from tippicserver.models.user import get_user
     from requests import post
 
     args = request.args
