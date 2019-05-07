@@ -423,7 +423,7 @@ def award_user(user_id, public_address):
             send_tx = send_kin(public_address, reward)
             if send_tx:
                 onboarded = True
-                report_reward(send_tx, user_id, public_address, reward, "gift", "onboarding-gift")
+                create_tx(send_tx, user_id, public_address, reward, "gift", "onboarding-gift")
                 set_onboarded(user_id, True, public_address)
                 print('sent %d KIN to user %s ' % (reward, user_id))
             else:
