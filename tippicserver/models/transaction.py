@@ -64,6 +64,13 @@ def list_user_transactions(user_id, max_txs=None):
     txs = txs[:max_txs] if max_txs and max_txs > len(txs) else txs
     return txs
 
+def list_user_incoming_tips(user_id, to_address, max_txs=None):
+    from tippicserver.utils import PICTURE
+
+    txs = Transaction.query.filter(Transaction.user_id != user_id).filter(Transaction.to_address == to_address).filter(Transaction.tx_type == PICTURE).order_by(desc(Transaction.update_at)).all()
+    # trim the amount of txs
+    txs = txs[:max_txs] if max_txs and max_txs > len(txs) else txs
+    return txs
 
 def create_tx(tx_hash, user_id, to_address, amount, tx_type, tx_for_item_id):
     try:

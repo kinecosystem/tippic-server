@@ -12,7 +12,7 @@ from flask_api import status
 
 from tippicserver import app, config, utils
 from tippicserver.models import create_user, update_user_token, update_user_app_version, is_onboarded, set_onboarded, \
-    create_tx, list_user_transactions, \
+    create_tx, list_user_transactions, list_user_incoming_tips, \
     add_p2p_tx, set_user_phone_number, match_phone_number_to_address, \
     list_p2p_transactions_for_user_id, ack_auth_token, \
     is_user_authenticated, is_user_phone_verified, get_user_config, get_email_template_by_type, get_backup_hints, \
@@ -26,7 +26,8 @@ from tippicserver.utils import InvalidUsage, InternalError, increment_metric, ga
     extract_phone_number_from_firebase_id_token, \
     get_global_config, read_payment_data_from_cache
 from tippicserver.views_common import get_source_ip, extract_headers, limit_to_acl
-from .utils import OS_ANDROID, OS_IOS
+from .utils import OS_ANDROID, OS_IOS, APP_TO_APP, PICTURE, GIFT
+from .config import DISCOVERY_APPS_ANDROID_URL, DISCOVERY_APPS_OSX_URL
 
 
 def get_payment_lock_name(user_id, task_id):
@@ -268,36 +269,56 @@ def get_transactions_api():
 
     each item in the list contains:
         - the tx_hash
-        - tx direction (in, out)
         - amount of kins transferred
         - date
         - title and additional details
     """
+    import urllib.request, json
+    from tippicserver.models.user import get_address_by_userid
     detailed_txs = []
     try:
         user_id, auth_token = extract_headers(request)
-        server_txs = [{'type': 'server', 'tx_hash': tx.tx_hash, 'amount': tx.amount, 'client_received': not tx.incoming_tx, 'tx_info': tx.tx_info, 'date': arrow.get(tx.update_at).timestamp} for tx in list_user_transactions(user_id, MAX_TXS_PER_USER)]
+        public_address = get_address_by_userid(user_id)
+        platform = get_user_os_type(user_id)
+        link = DISCOVERY_APPS_ANDROID_URL if platform == OS_ANDROID else DISCOVERY_APPS_OSX_URL
+        with urllib.request.urlopen(link) as url:
+            discover_apps = json.loads(url.read().decode())['apps']
+            
+            for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
+                if tx.tx_type == APP_TO_APP:
+                    app_data = next(item for item in discover_apps if item['memo'] == tx.tx_for_item_id)
+                    detailed_txs.append({
+                        "title": "Transferred Kin to",
+                        "amount": tx.amount * -1,
+                        "date": arrow.get(tx.update_at).timestamp,
+                        "type": "app-to-app",
+                        "provider": {
+                            "image_url": app_data['meta_data']['icon_url'],
+                            "name": app_data['meta_data']['app_name']
+                        }
+                    })
+                elif tx.tx_type == GIFT:
+                    detailed_txs.append({
+                        "title": "A Gift from Tippic",
+                        "amount": tx.amount,
+                        "date": arrow.get(tx.update_at).timestamp,
+                        "type": "gift"
+                    })
+                elif tx.tx_type == PICTURE:
+                    detailed_txs.append({
+                        "title": "Tipped today’s pic",
+                        "amount": tx.amount * -1,
+                        "date": arrow.get(tx.update_at).timestamp,
+                        "type": "give_tip"
+                    })
 
-        # # get the offer, task details
-        # for tx in server_txs:
-        #     details = get_offer_details(tx['tx_info']['offer_id']) if not tx['client_received'] else get_task_details(tx['tx_info']['task_id'])
-        #     detailed_txs.append({**tx, **details})
-
-        # get p2p details
-        import emoji
-        kin_from_a_friend_text=emoji.emojize(':party_popper: Kin from a friend')
-        p2p_txs = [{'title': kin_from_a_friend_text if str(tx.receiver_user_id).lower() == str(user_id).lower() else 'Kin to a friend',
-                    'description': 'a friend sent you %sKIN' % tx.amount,
-                    'provider': {'image_url': 'https://s3.amazonaws.com/kinapp-static/brand_img/poll_logo_kin.png', 'name': 'friend'},
-                    'type': 'p2p',
-                    'tx_hash': tx.tx_hash,
-                    'amount': tx.amount,
-                    'client_received': str(tx.receiver_user_id).lower() == str(user_id).lower(),
-                    'tx_info': {'memo': 'na', 'task_id': '-1'},
-                    'date': arrow.get(tx.update_at).timestamp} for tx in list_p2p_transactions_for_user_id(user_id, MAX_TXS_PER_USER)]
-
-        # merge txs:
-        detailed_txs = detailed_txs + p2p_txs
+            for tx in list_user_incoming_tips(user_id, public_address):
+                detailed_txs.append({
+                        "title": "Got a tip",
+                        "amount": tx.amount,
+                        "date": arrow.get(tx.update_at).timestamp,
+                        "type": "get_tip"
+                    })
 
         # sort by date
         detailed_txs = sorted(detailed_txs, key=lambda k: k['date'], reverse=True)
@@ -384,8 +405,11 @@ def onboard_user():
 
 
 def award_user(user_id, public_address):
+    from tippicserver.models.transaction import create_tx
+
     onboarded = False
     reward = get_initial_reward()
+
     
     for other_id in get_associated_user_ids(user_id):
         if is_onboarded(other_id):
@@ -399,6 +423,7 @@ def award_user(user_id, public_address):
             send_tx = send_kin(public_address, reward)
             if send_tx:
                 onboarded = True
+                report_reward(send_tx, user_id, public_address, reward, "gift", "onboarding-gift")
                 set_onboarded(user_id, True, public_address)
                 print('sent %d KIN to user %s ' % (reward, user_id))
             else:
@@ -922,7 +947,6 @@ def get_validation_nonce():
         print('get_nonce: exception %s occurred' % e)
         print(e)
         raise InvalidUsage('bad-request')
-    from uuid import uuid4
     return jsonify(nonce=validation_module.get_validation_nonce(app.redis, user_id))
 
 

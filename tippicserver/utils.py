@@ -17,6 +17,9 @@ ERROR_NO_GOODS = -2
 
 ORDER_ID_LENGTH = 18
 
+APP_TO_APP = 'app-to-app'
+PICTURE = 'picture'
+GIFT = 'gift'
 OS_ANDROID = 'android'
 OS_IOS = 'iOS'
 

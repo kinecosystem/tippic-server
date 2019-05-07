@@ -23,6 +23,8 @@ P2P_TRANSFERS_ENABLED = True # leave this on for tests
 P2P_MIN_KIN_AMOUNT = 300
 P2P_MAX_KIN_AMOUNT = 12500
 
+DISCOVERY_APPS_ANDROID_URL = 'https://cdn.kinitapp.com/discovery_apps_android.json'
+DISCOVERY_APPS_OSX_URL = 'https://cdn.kinitapp.com/discovery_apps_osx.json'
 TOS_URL = 'http://www.kinitapp.com/terms-and-privacy-policy'
 FAQ_URL = 'https://cdn.kinitapp.com/faq/v2/index.html'
 FIREBASE_SERVICE_ACCOUNT_FILE = '/opt/tippic-server/service-account.json'
@@ -31,8 +33,6 @@ FIREBASE_SERVICE_ACCOUNT_FILE = '/opt/tippic-server/service-account.json'
 AUTH_TOKEN_SEND_INTERVAL_DAYS = 0
 AUTH_TOKEN_ENFORCED = False
 AUTH_TOKEN_ENABLED = False
-
-PAYMENT_SERVICE_URL = 'https://stage.payments.kinitapp.com:5000'
 
 BLOCK_ONBOARDING_IOS_VERSION = '0.1'
 BLOCK_ONBOARDING_ANDROID_VERSION = '0.1'
