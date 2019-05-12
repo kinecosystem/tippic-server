@@ -23,8 +23,9 @@ P2P_TRANSFERS_ENABLED = True # leave this on for tests
 P2P_MIN_KIN_AMOUNT = 300
 P2P_MAX_KIN_AMOUNT = 12500
 
-DISCOVERY_APPS_ANDROID_URL = 'https://cdn.kinitapp.com/discovery_apps_android.json'
-DISCOVERY_APPS_OSX_URL = 'https://cdn.kinitapp.com/discovery_apps_osx.json'
+DISCOVERY_APPS_ANDROID_URL = 'https://cdn.kinitapp.com/discovery_apps_android_stage.json'
+DISCOVERY_APPS_OSX_URL = 'https://cdn.kinitapp.com/discovery_apps_osx_stage.json'
+
 TOS_URL = 'http://www.kinitapp.com/terms-and-privacy-policy'
 FAQ_URL = 'https://cdn.kinitapp.com/faq/v2/index.html'
 FIREBASE_SERVICE_ACCOUNT_FILE = '/opt/tippic-server/service-account.json'
@@ -44,6 +45,6 @@ BLOCKED_COUNTRY_CODES = "[]"
 MAX_NUM_REGISTRATIONS_PER_NUMBER = 2  # keep this value at 2 for the test
 APK_PACKAGE_NAME = 'org.kinecosystem.tippic'
 
-PAYMENT_SERVICE_URL = 'https://kin3stage.payments.kinitapp.com:4998'
-API_SERVER_URL = 'https://stage2.tippicapp.com'
+PAYMENT_SERVICE_URL = 'http://localhost:4998'
+API_SERVER_URL = 'http://localhost'
 MIGRATION_SERVICE_URL = "http://localhost:8000" # tunnel
