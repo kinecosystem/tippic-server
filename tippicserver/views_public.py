@@ -275,50 +275,16 @@ def get_transactions_api():
     """
     import urllib.request, json
     from tippicserver.models.user import get_address_by_userid
-    detailed_txs = []
+    from tippicserver.models.transaction import get_transactions_json
+    from tippicserver.utils import get_discovery_apps
     try:
         user_id, auth_token = extract_headers(request)
         public_address = get_address_by_userid(user_id)
         platform = get_user_os_type(user_id)
         link = DISCOVERY_APPS_ANDROID_URL if platform == OS_ANDROID else DISCOVERY_APPS_OSX_URL
-        with urllib.request.urlopen(link) as url:
-            discover_apps = json.loads(url.read().decode())['apps']
-            
-            for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
-                if tx.tx_type == APP_TO_APP:
-                    app_data = next(item for item in discover_apps if item['memo'] == tx.tx_for_item_id)
-                    detailed_txs.append({
-                        "title": "Transferred Kin to",
-                        "amount": tx.amount * -1,
-                        "date": arrow.get(tx.update_at).timestamp,
-                        "type": "app-to-app",
-                        "provider": {
-                            "image_url": app_data['meta_data']['icon_url'],
-                            "name": app_data['meta_data']['app_name']
-                        }
-                    })
-                elif tx.tx_type == GIFT:
-                    detailed_txs.append({
-                        "title": "A Gift from Tippic",
-                        "amount": tx.amount,
-                        "date": arrow.get(tx.update_at).timestamp,
-                        "type": "gift"
-                    })
-                elif tx.tx_type == PICTURE:
-                    detailed_txs.append({
-                        "title": "Tipped today’s pic",
-                        "amount": tx.amount * -1,
-                        "date": arrow.get(tx.update_at).timestamp,
-                        "type": "give_tip"
-                    })
-
-            for tx in list_user_incoming_tips(user_id, public_address):
-                detailed_txs.append({
-                        "title": "Got a tip",
-                        "amount": tx.amount,
-                        "date": arrow.get(tx.update_at).timestamp,
-                        "type": "get_tip"
-                    })
+        
+        discovery_apps = get_discovery_apps(link)
+        detailed_txs = get_transactions_json(user_id, public_address, discovery_apps)
 
         # sort by date
         detailed_txs = sorted(detailed_txs, key=lambda k: k['date'], reverse=True)
@@ -423,7 +389,7 @@ def award_user(user_id, public_address):
             send_tx = send_kin(public_address, reward)
             if send_tx:
                 onboarded = True
-                create_tx(send_tx, user_id, public_address, reward, "gift", "onboarding-gift")
+                create_tx(send_tx, user_id, public_address, reward, GIFT, "onboarding-gift")
                 set_onboarded(user_id, True, public_address)
                 print('sent %d KIN to user %s ' % (reward, user_id))
             else:

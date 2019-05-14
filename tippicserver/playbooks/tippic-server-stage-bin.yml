@@ -29,6 +29,8 @@
    auth_token_send_interval_days: 0
    auth_token_enforced: False
    auth_token_enabled: False
+   discvoery_apps_android_url: 'https://cdn.kinitapp.com/discovery_apps_android_stage.json'
+   discvoery_apps_ios_url: 'https://cdn.kinitapp.com/discovery_apps_ios_stage.json' 
    payment_service_url: 'http://kin3stage.payments.kinitapp.com:4998'
    migration_service_url: 'http://kin3stage.payments.kinitapp.com:8000/' # migration to kin 3
    api_server_url: 'https://stage3.tippicapp.com'

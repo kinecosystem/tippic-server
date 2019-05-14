@@ -30,6 +30,10 @@ MAX_TXS_PER_USER = 100
 REDIS_USERID_PREFIX = 'userid'
 
 
+def get_discovery_apps(link):
+    with urllib.request.urlopen(link) as url:
+        return json.loads(url.read().decode())['apps']
+
 def generate_order_id(is_manual=False):
     # generate a unique-ish id for txs, this goes into the memo field of txs
     env = config.DEPLOYMENT_ENV[0:1]  # either 's(tage)', 't(est)' or 'p(rod)'
