@@ -46,6 +46,9 @@ def report_transaction(tx_json):
 
     # if not test - make sure transaction is valid
     try:
+        if config.DEBUG:
+            return create_tx(tx_json['tx_hash'], tx_json['user_id'], tx_json['to_address'], tx_json['amount'],
+                     tx_json['type'], tx_json['id'])
         valid, data = stellar.extract_tx_payment_data(tx_json['tx_hash'])
         if not config.DEBUG and not valid:
             return False
@@ -58,6 +61,9 @@ def report_transaction(tx_json):
 
 
 def get_transactions_json(user_id, public_address, discovery_apps):
+    from tippicserver.utils import MAX_TXS_PER_USER,APP_TO_APP, PICTURE, GIFT, GIVE_TIP, GET_TIP
+    import arrow
+    
     detailed_txs = []
     for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
         if tx.tx_type == APP_TO_APP:
@@ -66,7 +72,7 @@ def get_transactions_json(user_id, public_address, discovery_apps):
                 "title": "Transferred Kin to",
                 "amount": tx.amount * -1,
                 "date": arrow.get(tx.update_at).timestamp,
-                "type": "app-to-app",
+                "type": APP_TO_APP,
                 "provider": {
                     "image_url": app_data['meta_data']['icon_url'],
                     "name": app_data['meta_data']['app_name']
@@ -77,14 +83,14 @@ def get_transactions_json(user_id, public_address, discovery_apps):
                 "title": "A Gift from Tippic",
                 "amount": tx.amount,
                 "date": arrow.get(tx.update_at).timestamp,
-                "type": "gift"
+                "type": GIFT
             })
         elif tx.tx_type == PICTURE:
             detailed_txs.append({
                 "title": "Tipped today’s pic",
                 "amount": tx.amount * -1,
                 "date": arrow.get(tx.update_at).timestamp,
-                "type": "give_tip"
+                "type": GIVE_TIP
             })
 
     for tx in list_user_incoming_tips(user_id, public_address):
@@ -92,7 +98,7 @@ def get_transactions_json(user_id, public_address, discovery_apps):
                 "title": "Got a tip",
                 "amount": tx.amount,
                 "date": arrow.get(tx.update_at).timestamp,
-                "type": "get_tip"
+                "type": GET_TIP
             })
 
     return detailed_txs

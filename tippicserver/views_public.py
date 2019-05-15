@@ -26,7 +26,7 @@ from tippicserver.utils import InvalidUsage, InternalError, increment_metric, ga
     extract_phone_number_from_firebase_id_token, \
     get_global_config, read_payment_data_from_cache
 from tippicserver.views_common import get_source_ip, extract_headers, limit_to_acl
-from .utils import OS_ANDROID, OS_IOS, APP_TO_APP, PICTURE, GIFT
+from .utils import OS_ANDROID, OS_IOS
 from .config import DISCOVERY_APPS_ANDROID_URL, DISCOVERY_APPS_OSX_URL
 
 
@@ -273,7 +273,6 @@ def get_transactions_api():
         - date
         - title and additional details
     """
-    import urllib.request, json
     from tippicserver.models.user import get_address_by_userid
     from tippicserver.models.transaction import get_transactions_json
     from tippicserver.utils import get_discovery_apps
@@ -372,6 +371,7 @@ def onboard_user():
 
 def award_user(user_id, public_address):
     from tippicserver.models.transaction import create_tx
+    from tippicserver.utils import GIFT
 
     onboarded = False
     reward = get_initial_reward()

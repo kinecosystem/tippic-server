@@ -20,6 +20,8 @@ ORDER_ID_LENGTH = 18
 APP_TO_APP = 'app-to-app'
 PICTURE = 'picture'
 GIFT = 'gift'
+GIVE_TIP = 'give_tip'
+GET_TIP = 'get_tip'
 OS_ANDROID = 'android'
 OS_IOS = 'iOS'
 
@@ -31,6 +33,7 @@ REDIS_USERID_PREFIX = 'userid'
 
 
 def get_discovery_apps(link):
+    import urllib.request, json
     with urllib.request.urlopen(link) as url:
         return json.loads(url.read().decode())['apps']
 
