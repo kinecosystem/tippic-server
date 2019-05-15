@@ -46,9 +46,6 @@ def report_transaction(tx_json):
 
     # if not test - make sure transaction is valid
     try:
-        if config.DEBUG:
-            return create_tx(tx_json['tx_hash'], tx_json['user_id'], tx_json['to_address'], tx_json['amount'],
-                     tx_json['type'], tx_json['id'])
         valid, data = stellar.extract_tx_payment_data(tx_json['tx_hash'])
         if not config.DEBUG and not valid:
             return False
