@@ -28,6 +28,8 @@
    stellar_network: 'Kin Mainnet ; December 2018'
    stellar_kin_issuer_address: GDF42M3IPERQCBLWFEZKQRK77JQ65SCKTU3CW36HZVCX7XX5A5QXZIVK
    stellar_horizon_url: https://horizon.kinfederation.com
+   discvoery_apps_android_url: 'https://cdn.kinitapp.com/discovery_apps_android.json'
+   discvoery_apps_ios_url: 'https://cdn.kinitapp.com/discovery_apps_ios.json' 
    max_simultaneous_orders_per_user: 2
    kms_key_aws_region: 'us-east-1'
    phone_verification_enabled: True

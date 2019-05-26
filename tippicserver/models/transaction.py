@@ -57,6 +57,49 @@ def report_transaction(tx_json):
                      tx_json['type'], tx_json['id'])
 
 
+def get_transactions_json(user_id, public_address, discovery_apps):
+    from tippicserver.utils import MAX_TXS_PER_USER,APP_TO_APP, PICTURE, GIFT, GIVE_TIP, GET_TIP
+    import arrow
+    
+    detailed_txs = []
+    for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
+        if tx.tx_type == APP_TO_APP:
+            app_data = next(item for item in discovery_apps if item['memo'] == tx.tx_for_item_id)
+            detailed_txs.append({
+                "title": "Transferred Kin to",
+                "amount": tx.amount * -1,
+                "date": arrow.get(tx.update_at).timestamp,
+                "type": APP_TO_APP,
+                "provider": {
+                    "image_url": app_data['meta_data']['icon_url'],
+                    "name": app_data['meta_data']['app_name']
+                }
+            })
+        elif tx.tx_type == GIFT:
+            detailed_txs.append({
+                "title": "A Gift from Tippic",
+                "amount": tx.amount,
+                "date": arrow.get(tx.update_at).timestamp,
+                "type": GIFT
+            })
+        elif tx.tx_type == PICTURE:
+            detailed_txs.append({
+                "title": "Tipped today’s pic",
+                "amount": tx.amount * -1,
+                "date": arrow.get(tx.update_at).timestamp,
+                "type": GIVE_TIP
+            })
+
+    for tx in list_user_incoming_tips(user_id, public_address):
+        detailed_txs.append({
+                "title": "Got a tip",
+                "amount": tx.amount,
+                "date": arrow.get(tx.update_at).timestamp,
+                "type": GET_TIP
+            })
+
+    return detailed_txs
+
 def list_user_transactions(user_id, max_txs=None):
     """returns all txs by this user - or the last x tx if max_txs was passed"""
     txs = Transaction.query.filter(Transaction.user_id == user_id).order_by(desc(Transaction.update_at)).all()
@@ -64,6 +107,13 @@ def list_user_transactions(user_id, max_txs=None):
     txs = txs[:max_txs] if max_txs and max_txs > len(txs) else txs
     return txs
 
+def list_user_incoming_tips(user_id, to_address, max_txs=None):
+    from tippicserver.utils import PICTURE
+
+    txs = Transaction.query.filter(Transaction.user_id != user_id).filter(Transaction.to_address == to_address).filter(Transaction.tx_type == PICTURE).order_by(desc(Transaction.update_at)).all()
+    # trim the amount of txs
+    txs = txs[:max_txs] if max_txs and max_txs > len(txs) else txs
+    return txs
 
 def create_tx(tx_hash, user_id, to_address, amount, tx_type, tx_for_item_id):
     try:
