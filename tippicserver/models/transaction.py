@@ -60,14 +60,17 @@ def report_transaction(tx_json):
 def get_transactions_json(user_id, public_address, discovery_apps):
     from tippicserver.utils import MAX_TXS_PER_USER,APP_TO_APP, PICTURE, GIFT, GIVE_TIP, GET_TIP
     import arrow
+    from tippicserver.models.user import get_user
     
     detailed_txs = []
+    user = get_user(user_id)
     for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
         if tx.tx_type == APP_TO_APP:
             app_data = next(item for item in discovery_apps if ("CrossApps_" + item['memo']) == tx.tx_for_item_id)
+            direction = 1 if tx.to_address == user.public_address else -1
             detailed_txs.append({
                 "title": "Transferred Kin to",
-                "amount": tx.amount * -1,
+                "amount": tx.amount * direction,
                 "date": arrow.get(tx.update_at).timestamp,
                 "type": APP_TO_APP,
                 "provider": {
