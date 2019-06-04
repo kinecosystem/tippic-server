@@ -291,8 +291,9 @@ def get_transactions_api():
             detailed_txs = detailed_txs[:MAX_TXS_PER_USER]
 
     except Exception as e:
+        import traceback
         log.error('cant get txs for user')
-        print(e)
+        traceback.print_exc()
         return jsonify(status='error', txs=[])
 
     return jsonify(status='ok', txs=detailed_txs)
