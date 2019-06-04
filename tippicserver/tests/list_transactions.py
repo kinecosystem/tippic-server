@@ -169,7 +169,7 @@ class Tester(unittest.TestCase):
                                      "tx_hash": "9dd18b4dc27aba6d4edd736a80969341321dd64afc9ce460449c946e4e5bd38e",
                                      "amount": 2,
                                      "to_address": picture_two,
-                                     "id": "kit",
+                                     "id": "CrossApp_kit",
                                      "type": "app-to-app",
                                      "date": arrow.utcnow().timestamp
                                  }),

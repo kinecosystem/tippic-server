@@ -66,7 +66,7 @@ def get_transactions_json(user_id, public_address, discovery_apps):
     user = get_user(user_id)
     for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
         if tx.tx_type == APP_TO_APP:
-            app_data = next(item for item in discovery_apps if ("CrossApps_" + item['memo'] == tx.tx_for_item_id))
+            app_data = next(item for item in discovery_apps if (item['memo'] in tx.tx_for_item_id))
             direction = 1 if tx.to_address == user.public_address else -1
             detailed_txs.append({
                 "title": "Transferred Kin to",

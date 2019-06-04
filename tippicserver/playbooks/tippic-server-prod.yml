@@ -28,7 +28,7 @@
    stellar_network: 'Kin Mainnet ; December 2018'
    stellar_kin_issuer_address: GDF42M3IPERQCBLWFEZKQRK77JQ65SCKTU3CW36HZVCX7XX5A5QXZIVK
    stellar_horizon_url: https://horizon.kinfederation.com
-   discvoery_apps_android_url: https://cdn.kinitapp.com/discovery_apps_android.json
+   discvoery_apps_android_url: https://discover.kin.org/android.json
    discvoery_apps_ios_url: https://cdn.kinitapp.com/discovery_apps_ios.json
    max_simultaneous_orders_per_user: 2
    kms_key_aws_region: 'us-east-1'
@@ -45,7 +45,7 @@
    blackhawk_critical_balance_threshold: 30 # no cards will be ordered when we reach this threshold
    payment_service_url: 'http://prod3.payments.kinitapp.com:4998'
    api_server_url: 'https://api3.tippicapp.com'
-   migration_service_url: http://migration.kinitapp.com:8000
+   migration_service_url: 'http://migration.kinitapp.com:8000'
    use_payment_service_phone_number_prefix: '+'
    use_payment_service_percent_of_users: 100
    block_onboarding_android_version: 0.0
