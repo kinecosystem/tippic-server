@@ -38,6 +38,7 @@ def get_env_key(env):
     else:
         return env
 
+
 def get_stellar_credentials():
     # get credentials from ssm. the base_seed is required, the channel-seeds are optional
     env = os.environ.get('ENV', 'test')

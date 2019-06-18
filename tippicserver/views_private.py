@@ -6,7 +6,7 @@ from uuid import UUID
 
 from flask import request, jsonify, abort
 
-from tippicserver import app, config, stellar, ssm
+from tippicserver import app, config, ssm
 from tippicserver.models import nuke_user_data, get_user_report, get_user_tx_report, scan_for_deauthed_users, \
     user_exists, get_unauthed_users, get_all_user_id_by_phone, delete_all_user_data, blacklist_phone_number, \
     blacklist_phone_by_user_id, \
@@ -14,6 +14,7 @@ from tippicserver.models import nuke_user_data, get_user_report, get_user_tx_rep
     set_update_available_below, set_force_update_below, add_picture, skip_picture_wait
 from tippicserver.utils import InvalidUsage, InternalError, increment_metric, gauge_metric, sqlalchemy_pool_status
 from tippicserver.views_common import limit_to_acl, limit_to_localhost, limit_to_password
+from tippicserver.stellar import get_kin_balance
 
 
 @app.route('/health', methods=['GET'])
@@ -55,14 +56,14 @@ def balance_api():
     base_seed, channel_seeds = ssm.get_stellar_credentials()
     balance = {'base_seed': {}, 'channel_seeds': {}}
 
-    from stellar_base.keypair import Keypair
-    balance['base_seed']['kin'] = stellar.get_kin_balance(Keypair.from_seed(base_seed).address().decode())
-    balance['base_seed']['xlm'] = stellar.get_xlm_balance(Keypair.from_seed(base_seed).address().decode())
+    from kin import Keypair
+    kp = Keypair()
+    balance['base_seed']['kin'] = get_kin_balance(kp.address_from_seed(base_seed))
     index = 0
     for channel in channel_seeds:
         # seeds only need to carry XLMs
-        balance['channel_seeds'][index] = {'xlm': 0}
-        balance['channel_seeds'][index]['xlm'] = stellar.get_xlm_balance(Keypair.from_seed(channel).address().decode())
+        balance['channel_seeds'][index] = {'kin': 0}
+        balance['channel_seeds'][index]['kin'] = get_kin_balance(kp.address_from_seed(channel))
         index = index + 1
 
     return jsonify(status='ok', balance=balance)
@@ -191,6 +192,7 @@ def users_unauthed_endpoint():
         limit_to_localhost()
     return jsonify(user_ids=get_unauthed_users())
 
+
 @app.route('/user/phone-number/blacklist', methods=['POST'])
 def user_phone_number_blacklist_endpoint():
     """blacklist a number"""
@@ -253,7 +255,7 @@ def reregister_users_endpoint():
     if not config.DEBUG:
         limit_to_localhost()
 
-    app.rq_slow.enqueue(re_register_all_users)
+    # app.rq_slow.enqueue(re_register_all_users)
     return jsonify(status='ok')
 
 

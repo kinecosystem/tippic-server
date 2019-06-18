@@ -15,9 +15,13 @@ from tippicserver import config, app
 ERROR_ORDERS_COOLDOWN = -1
 ERROR_NO_GOODS = -2
 
-KINIT_MEMO_PREFIX = '1-kit-'
-ORDER_ID_LENGTH = 21
+ORDER_ID_LENGTH = 18
 
+APP_TO_APP = 'app-to-app'
+PICTURE = 'picture'
+GIFT = 'gift'
+GIVE_TIP = 'give_tip'
+GET_TIP = 'get_tip'
 OS_ANDROID = 'android'
 OS_IOS = 'iOS'
 
@@ -28,13 +32,18 @@ MAX_TXS_PER_USER = 100
 REDIS_USERID_PREFIX = 'userid'
 
 
-def generate_memo(is_manual=False):
+def get_discovery_apps(link):
+    import urllib.request, json
+    with urllib.request.urlopen(link) as url:
+        return json.loads(url.read().decode())['apps']
+
+def generate_order_id(is_manual=False):
     # generate a unique-ish id for txs, this goes into the memo field of txs
     env = config.DEPLOYMENT_ENV[0:1]  # either 's(tage)', 't(est)' or 'p(rod)'
     if is_manual:
         # indicates that the memo was generate for a manual transaction
         env = 'm'
-    return KINIT_MEMO_PREFIX + env + str(uuid4().hex[:ORDER_ID_LENGTH])  # generate a memo string and send it to the client
+    return env + str(uuid4().hex[:ORDER_ID_LENGTH])  # generate a memo string and send it to the client
 
 
 def increment_metric(metric_name, count=1):
@@ -363,3 +372,28 @@ def commit_json_changed_to_orm(obj_to_commit, changed_fields_list):
         flag_modified(obj_to_commit, field_name)
     db.session.add(obj_to_commit)
     db.session.commit()
+
+
+def is_valid_client(user_id, validation_token):
+    import kinit_client_validation_module as validation_module
+    from .models.user import get_user_os_type, get_user_app_data
+
+    os_type = get_user_os_type(user_id)
+    apk_version = get_user_app_data(user_id).app_ver
+
+    log.info('user_id: %s  - os_type: %s - client apk_version: %s - VALIDATION_MIN_APK_VERSION: %s' % (
+    user_id, os_type, apk_version, validation_module.VALIDATION_MIN_APK_VERSION))
+
+    if os_type == OS_ANDROID :
+        log.info('user_id: %s  - REQUIRES VALIDATION' % user_id)
+        if validation_token is None:
+            log.info("user_id: %s  - validation_token is None!" % user_id)
+            return False
+
+        if not validation_module.validate_token(app.redis, user_id, validation_token,
+                                                config.APK_PACKAGE_NAME, config.DEPLOYMENT_ENV):
+            log.info("user_id: %s  - validation_token is invalid!" % user_id)
+            return False
+        else:
+            log.info("user_id: %s - validation_token is valid" % user_id)
+    return True

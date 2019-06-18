@@ -112,3 +112,6 @@ Pipfile\.lock
 dump\.rdb
 
 secret
+
+*.retry
+.DS_Store

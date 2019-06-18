@@ -33,22 +33,6 @@
     state: present
     reload: yes
 
-- name: Clone the kin-core-python repo
-  git:
-    repo=https://github.com/kinfoundation/kin-core-python.git
-    dest=/opt/kin-core-python
-    accept_hostkey=true
-    force=yes
-
-- name: pip install reqs for the kin-core-python
-  pip:
-    requirements: /opt/kin-core-python/requirements.txt 
-
-- name: install the kin-core-python from the local copy. force upgrade to take any changes.
-  pip: 
-    name: /opt/kin-core-python
-    state: latest
-
 - name: Clone the tippic-server repo
   git:
     repo=https://github.com/kinecosystem/tippic-server.git
@@ -57,6 +41,19 @@
     force=yes
     version={{branch_name}}
 
+- name: Clone the kinit-client-validation-server-module
+  git:
+    repo=git@github.com:kinecosystem/kinit-client-validation-server-module.git
+    dest=/opt/kinit-client-validation-server-module
+    accept_hostkey=true
+    force=yes
+    version=kin3
+    key_file=/home/ubuntu/.ssh/id_rsa
+
+- name: install the kinit-client-validation-server-module  from the local copy. force upgrade to take any changes.
+  pip:
+    name: /opt/kinit-client-validation-server-module
+    state: latest
 
 - name: pip install reqs
   pip:
