@@ -58,18 +58,38 @@ def report_transaction(tx_json):
 
 
 def get_transactions_json(user_id, public_address, discovery_apps):
-    from tippicserver.utils import MAX_TXS_PER_USER,APP_TO_APP, PICTURE, GIFT, GIVE_TIP, GET_TIP
-    import arrow
+    import arrow, re
+    from tippicserver.utils import MAX_TXS_PER_USER,APP_TO_APP, PICTURE, GIFT, GIVE_TIP, GET_TIP, IN, OUT
     from tippicserver.models.user import get_user
+
     
     detailed_txs = []
     user = get_user(user_id)
+    p = re.compile("1-(.*?)-CrossApps_(.*)")
+
     for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
         if tx.tx_type == APP_TO_APP:
-            app_data = next(item for item in discovery_apps if (item['memo'] in tx.tx_for_item_id))
-            direction = 1 if tx.to_address == user.public_address else -1
+
+            direction = IN if tx.to_address == user.public_address else OUT    
+            matcher = p.findall(tx.tx_for_item_id)
+            
+            if len(matcher) == 1 and len(matcher[0]) == 2:
+                source_app = matcher[0][0]
+                dest_app = matcher[0][1]
+                if direction == IN:
+                    app_data = next(item for item in discovery_apps if (item['memo'] in source_app))
+                else:
+                    app_data = next(item for item in discovery_apps if (item['memo'] in dest_app))
+            else:
+                app_data = next(item for item in discovery_apps if (item['memo'] in tx.tx_for_item_id))
+                
+            if direction == IN:
+                title = "Transferred Kin from"
+            else:
+                title = "Transferred Kin to"
+
             detailed_txs.append({
-                "title": "Transferred Kin to",
+                "title": title,
                 "amount": tx.amount * direction,
                 "date": arrow.get(tx.update_at).timestamp,
                 "type": APP_TO_APP,

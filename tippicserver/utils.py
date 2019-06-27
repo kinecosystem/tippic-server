@@ -24,6 +24,8 @@ GIVE_TIP = 'give_tip'
 GET_TIP = 'get_tip'
 OS_ANDROID = 'android'
 OS_IOS = 'iOS'
+IN=1
+OUT=-1
 
 DEFAULT_MIN_CLIENT_VERSION = '0.1'
 

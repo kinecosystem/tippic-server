@@ -168,8 +168,8 @@ class Tester(unittest.TestCase):
                                  {
                                      "tx_hash": "9dd18b4dc27aba6d4edd736a80969341321dd64afc9ce460449c946e4e5bd38e",
                                      "amount": 2,
-                                     "to_address": picture_two,
-                                     "id": "CrossApp_kit",
+                                     "to_address": address2,
+                                     "id": "CrossApps_kit",
                                      "type": "app-to-app",
                                      "date": arrow.utcnow().timestamp
                                  }),
@@ -202,6 +202,24 @@ class Tester(unittest.TestCase):
 
         sleep(1)
 
+        # user 1 got kin from another app
+        resp = self.app.post('/user/transaction/report',
+                             data=json.dumps(
+                                 {
+                                     "tx_hash": "fc407d1ca71342edf6c5bee7b914b36886b063b29a7b32b5145dfec07860e51e",
+                                     "amount": 50,
+                                     "to_address": user_one_public_address,
+                                     "id": "1-rced-CrossApps_tipc",
+                                     "type": "app-to-app",
+                                     "date": arrow.utcnow().timestamp
+                                 }),
+                             headers={USER_ID_HEADER: str(userid1)},
+                             content_type='application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'ok')
+
         resp = self.app.get('/user/transactions',
                             headers={USER_ID_HEADER: str(userid1)})
         data = json.loads(resp.data)
@@ -210,25 +228,25 @@ class Tester(unittest.TestCase):
 
         # validate gift
         initial_reward = get_initial_reward()
-        gift_tx = detailed_txs[3]
+        gift_tx = detailed_txs[4]
 
         self.assertEqual(gift_tx['amount'], initial_reward)
         self.assertEqual(gift_tx['type'], GIFT)
 
-        tip_tx = detailed_txs[2]
+        tip_tx = detailed_txs[3]
         self.assertEqual(tip_tx['amount'], -2)
         self.assertEqual(tip_tx['type'], GIVE_TIP)
 
 
-        app_to_app_tx = detailed_txs[1]
+        app_to_app_tx = detailed_txs[2]
         self.assertEqual(app_to_app_tx['amount'], -2)
         self.assertEqual(app_to_app_tx['type'], APP_TO_APP)
 
-        got_tip_tx = detailed_txs[0]
-        self.assertEqual(got_tip_tx['amount'], 3)
-        self.assertEqual(got_tip_tx['type'], GET_TIP)
+        app_to_app_tx = detailed_txs[0]
+        self.assertEqual(app_to_app_tx['amount'], 50)
+        self.assertEqual(app_to_app_tx['type'], APP_TO_APP)
 
 
-
+        print(detailed_txs)
 if __name__ == '__main__':
     unittest.main()
