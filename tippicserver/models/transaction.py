@@ -65,7 +65,7 @@ def get_transactions_json(user_id, public_address, discovery_apps):
     
     detailed_txs = []
     user = get_user(user_id)
-    p = re.compile("1-(.*?)-CrossApps_(.*)")
+    p = re.compile(r"1-(.*?)-CrossApps_(.*)")
 
     for tx in list_user_transactions(user_id, MAX_TXS_PER_USER):    
         if tx.tx_type == APP_TO_APP:
